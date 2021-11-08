@@ -176,7 +176,16 @@ int main()
         // INV PERMUTATION
         // retrieve original data 
         std::vector<int> original_data(M*N); 
-        invPermuteData(permuted_data, original_data, sequence);
+        // recreate sequence from secrete key K 
+        int Kr = K; 
+        initSeed(Kr); 
+        std::vector<unsigned int> retrieve_sequence(M*N);
+        std::iota(retrieve_sequence.begin(), retrieve_sequence.end(), 0);
+        // sequence of permutation 
+        permuteSequence(retrieve_sequence); 
+
+
+        invPermuteData(permuted_data, original_data, retrieve_sequence);
         printData(original_data, "Retrieve Original Data :");
 
 
