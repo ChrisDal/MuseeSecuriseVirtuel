@@ -95,6 +95,18 @@ void permuteData(const std::vector<T>& data,  std::vector<T>& permdata, const st
 
 
 template <class T>
+void invPermuteData(const std::vector<T>& permdata,  std::vector<T>& data, const std::vector<unsigned int>& sequence)
+{
+    for (unsigned int k = 0; k < sequence.size(); k++)
+    {
+        data[sequence[k]] = permdata[k]; 
+    }
+}
+
+
+
+
+template <class T>
 void printData(const std::vector<T>& vec, std::string prefix= "")
 {
     
@@ -150,7 +162,7 @@ int main()
 
 
         // ===================================================
-    
+        // PERMUTATION 
         printData(sequence, "Raw Sequence"); 
         // generate a permutation sequence 
         permuteSequence(sequence);
@@ -161,6 +173,12 @@ int main()
         printData(permuted_data, "Permuted Data");
 
         // ===================================================
+        // INV PERMUTATION
+        // retrieve original data 
+        std::vector<int> original_data(M*N); 
+        invPermuteData(permuted_data, original_data, sequence);
+        printData(original_data, "Retrieve Original Data :");
+
 
     }
 
