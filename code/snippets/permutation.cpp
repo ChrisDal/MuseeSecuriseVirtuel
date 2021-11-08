@@ -120,13 +120,12 @@ void printData(const std::vector<T>& vec, std::string prefix= "")
 }
 
 
-
 /*===========================================================================*/
 
 int main()
 {
-    int M = 5; 
-    int N = 5; 
+    int M = 5; // M columns
+    int N = 5; // N rows
 
     // clé secrète 
     int K = 456489; 
@@ -151,7 +150,7 @@ int main()
     }*/
 
 
-    {
+    /*{
         std::vector<int> test_data(M*N); 
         std::iota(test_data.begin(), test_data.end(), 0);
         // permuted data 
@@ -187,6 +186,37 @@ int main()
 
         invPermuteData(permuted_data, original_data, retrieve_sequence);
         printData(original_data, "Retrieve Original Data :");
+    }*/
+
+    {
+        /* PERMUTATION WITH ROW AND COL
+        Medical Image Encryption Based on Pixel Arrangement and Random
+        Permutation for Transmission Security
+        */ 
+
+        // ===================================================
+        // Init N rows, M columns 
+
+        std::vector<std::vector<int>> data(N, std::vector<int>(M)); 
+
+        std::vector<unsigned int> sequence(M*N); 
+
+
+
+
+
+
+
+
+        
+
+
+        
+
+        
+
+
+
 
 
     }
