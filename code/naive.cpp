@@ -148,10 +148,6 @@ int main(int argc, char** argv )
     
     cv::Mat image;
     image = cv::imread( argv[1], cv::IMREAD_GRAYSCALE );
-    cv::Mat permutedImage = cv::Mat::zeros(image.size[0], image.size[1], image.type()) ; 
-    const int nrows = image.size[0]; 
-    const int ncols = image.size[1]; 
-    const int NM = nrows * ncols; 
     
 
     if ( !image.data )
@@ -159,6 +155,12 @@ int main(int argc, char** argv )
         printf("No image data \n");
         return -1;
     }
+
+    const int nrows = image.size[0]; 
+    const int ncols = image.size[1]; 
+    const int NM = nrows * ncols; 
+
+    cv::Mat permutedImage = cv::Mat::zeros(nrows, ncols, image.type()); 
 
 
     // ===================================================
@@ -177,14 +179,24 @@ int main(int argc, char** argv )
     // ===================================================
 
     // RECONSTRUCTION 
-    //cv::Mat reconstructedImg = cv::Mat::zeros(permutedImage.size[0], perumt); 
+    cv::Mat reconstructedImg = cv::Mat::zeros(nrows, ncols, image.type());
+    // permute data 
+    invPermuteData(permutedImage, reconstructedImg, sequence); 
 
 
+    // ===================================================
     // display our images 
-    cv::namedWindow("Display Image", cv::WINDOW_AUTOSIZE );
-    cv::imshow("Display Image", permutedImage);
-    //cv::imshow("Display Permuted", permutedImage);
+    /*cv::namedWindow("Display Image", cv::WINDOW_AUTOSIZE );
+    cv::namedWindow("Display Permuted Image", cv::WINDOW_AUTOSIZE );
+    cv::namedWindow("Display Reconstructed Image", cv::WINDOW_AUTOSIZE );*/
+
+    cv::imshow("Display Image", image);
+    cv::imshow("Display Permuted image", permutedImage);
+    cv::imshow("Display Reconstructed image", reconstructedImg);
+
+    // End 
     cv::waitKey(0);
+    cv::destroyAllWindows(); 
 
     return EXIT_SUCCESS;
 }
