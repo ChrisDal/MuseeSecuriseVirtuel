@@ -1,2 +1,6 @@
 *.out
 *.exe
+CMakeFiles/
+MakeFile
+*.cmake
+build/*
