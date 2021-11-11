@@ -4,3 +4,4 @@ CMakeFiles/
 MakeFile
 *.cmake
 build/*
+.vscode
