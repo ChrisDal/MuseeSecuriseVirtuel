@@ -1,5 +1,11 @@
+#include <math.h>
+#include <float.h>
+#include <opencv2/core/hal/interface.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/imgproc.hpp>
+
+
+#define IMAGEMAT_TYPE uchar 
 
 // ===================================================
 // HISTOGRAMS 
@@ -86,6 +92,72 @@ cv::Mat processBarHistogram(cv::Mat& image, cv::Scalar color = cv::Scalar( 255, 
     }
 
     return histoImg;
+}
+
+/*===========================================================================*/
+// PSNR 
+
+// return an image of PSNR greyscale and a psnr 
+double processPSNR(cv::Mat& exportMSE, const cv::Mat& img, const cv::Mat& processed)
+{
+    cv::Scalar minColor = cv::Scalar(0);   // black 
+    cv::Scalar maxColor = cv::Scalar(255); // white
+    cv::Mat doubleMSE = cv::Mat::zeros(cv::Size(exportMSE.cols * 2, exportMSE.rows * 2), CV_64F);
+
+    // 
+    double mse = 0.0;
+    double result = 0.0;
+    double pixmse = 0.0; 
+
+    double maxmse = -DBL_MAX; 
+    double minmse = DBL_MAX; 
+
+
+    for(int i=0; i <img.rows; i++)
+    {
+        for(int j=0; j < img.cols; j++)
+        {
+            double a = (double)img.at<IMAGEMAT_TYPE>(i,j); 
+            double b = (double)processed.at<IMAGEMAT_TYPE>(i,j); 
+
+            pixmse = std::pow(a - b, 2); 
+
+            mse += pixmse; 
+            doubleMSE.at<double>(i, j) = pixmse; 
+
+            if (pixmse > maxmse)
+            {
+                maxmse = pixmse; 
+                
+            }
+
+            if (pixmse < minmse)
+            {
+                minmse = pixmse; 
+            }
+        }
+
+        
+    }
+
+    mse /= (double)img.rows*img.cols; 
+    result =  10.0*log10(255.0*255.0/mse); 
+
+    std::cout << "Min MSE=" << minmse << std::endl; 
+    std::cout << "Max MSE=" << maxmse << std::endl; 
+
+
+    // normalized between 0.0 and 1.0
+    for(int i=0; i <img.rows; i++)
+    {
+        for(int j=0; j < img.cols; j++)
+        {
+            exportMSE.at<IMAGEMAT_TYPE>(i, j) = (IMAGEMAT_TYPE)(255*((doubleMSE.at<double>(i, j) - minmse) / (maxmse - minmse))); 
+        }   
+    }
+
+    return result; 
+
 }
 
 

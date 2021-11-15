@@ -70,12 +70,21 @@ int main(int argc, char** argv )
     // permute data 
     invPermuteData(permutedImage, reconstructedImg, sequence); 
 
+    // ===================================================
+    // PSNR 
+    cv::Mat MSE(cv::Size(image.cols, image.rows), image.type(), cv::Scalar::all(0));
+    double imgpsnr = processPSNR(MSE, image, reconstructedImg); 
+    std::cout << "PSNR IMAGE = " << imgpsnr << std::endl; 
+
+
+
 
     // ===================================================
     // HISTOGRAMS 
     cv::Mat histoBarHimg = processBarHistogram(image, cv::Scalar( 255, 0, 0)); 
     cv::Mat histoBarHperm = processBarHistogram(permutedImage, cv::Scalar( 0, 255, 0)); 
     cv::Mat histoBarHrec = processBarHistogram(reconstructedImg, cv::Scalar( 0, 0, 255)); 
+    cv::Mat histoBarMSE = processBarHistogram(MSE, cv::Scalar( 255, 255, 255)); 
 
     // ===================================================
     // DISPLAY 
@@ -83,11 +92,11 @@ int main(int argc, char** argv )
     
     // display our images
     cv::Mat displayImages;  
-    concatenateFourMat(displayImages, image, cv::Mat(), permutedImage, reconstructedImg); 
+    concatenateFourMat(displayImages, image, MSE, permutedImage, reconstructedImg); 
 
     // display our histograms  
     cv::Mat displayHistos;  
-    concatenateFourMat(displayHistos, histoBarHimg, cv::Mat(), histoBarHperm, histoBarHrec); 
+    concatenateFourMat(displayHistos, histoBarHimg, histoBarMSE, histoBarHperm, histoBarHrec); 
 
 
     cv::imshow("Display Histogram: A Original, C Permuted Image, D Reconstructed ", displayHistos );
