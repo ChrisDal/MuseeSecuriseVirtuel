@@ -77,8 +77,6 @@ int main(int argc, char** argv )
     std::cout << "PSNR IMAGE = " << imgpsnr << std::endl; 
 
 
-
-
     // ===================================================
     // HISTOGRAMS 
     cv::Mat histoBarHimg = processBarHistogram(image, cv::Scalar( 255, 0, 0)); 

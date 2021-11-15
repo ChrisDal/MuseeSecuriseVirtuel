@@ -127,8 +127,7 @@ double processPSNR(cv::Mat& exportMSE, const cv::Mat& img, const cv::Mat& proces
 
             if (pixmse > maxmse)
             {
-                maxmse = pixmse; 
-                
+                maxmse = pixmse;  
             }
 
             if (pixmse < minmse)
