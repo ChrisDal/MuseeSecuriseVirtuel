@@ -54,17 +54,46 @@ int main(int argc, char** argv )
     const int blocksize = 16; // number of pixels by block 
     int sqrtblockSize = std::sqrt(blocksize);
 
-    cv::Mat smoothedImage = image.clone(); 
+    // Image Matrix 
+    cv::Mat smoothedImage = cv::Mat::zeros(image.size[0], image.size[1], image.type()); 
     cv::Mat subsampled(nrows / sqrtblockSize,  ncols/sqrtblockSize, image.type());
-    cv::Mat permutedImage = cv::Mat(image);
+    cv::Mat subpermutedImage = cv::Mat::zeros(subsampled.size[0], subsampled.size[1], subsampled.type());
+    cv::Mat permutedImage = cv::Mat::zeros(image.size[0], image.size[1], image.type());
+    cv::Mat subrecpermutedImage = cv::Mat::zeros(subsampled.size[0], subsampled.size[1], subsampled.type());
+    cv::Mat subreconstructedImage = cv::Mat::zeros(subsampled.size[0], subsampled.size[1], subsampled.type());
     cv::Mat reconstructedImg = cv::Mat::eye(nrows, ncols, image.type());
 
     // Split by blocs 
     int nblocks = (int) float(nrows)/ float(blocksize); 
 
     // mean calculation 
-    cv::Mat kernel = cv::Mat::ones(sqrtblockSize, sqrtblockSize, CV_32F) / (float)blocksize; 
-    cv::filter2D(image, smoothedImage, -1 , kernel); 
+    for (unsigned int ki = 0; ki < image.size[0]; ki+=sqrtblockSize)
+    {
+        for (unsigned int kj = 0; kj < image.size[1]; kj+=sqrtblockSize)
+        {
+            
+            float meanpixel = 0.0f; 
+
+            for (unsigned int ti = 0; ti < sqrtblockSize; ti++)
+            {
+                for (unsigned int tj = 0; tj < sqrtblockSize; tj++)
+                {
+                    meanpixel += (float)image.at<IMAGEMAT_TYPE>(ki + ti , kj + tj); 
+                }
+            }
+
+            meanpixel /= (float)blocksize; 
+            for (unsigned int ti = 0; ti < sqrtblockSize; ti++)
+            {
+                for (unsigned int tj = 0; tj < sqrtblockSize; tj++)
+                {
+                    smoothedImage.at<IMAGEMAT_TYPE>(ki + ti , kj + tj)= static_cast<IMAGEMAT_TYPE>(meanpixel);   
+                }
+            }
+        }
+    }
+
+
     cv::imshow("Main", smoothedImage);
     cv::waitKey(0); 
     // by bloc 
@@ -76,8 +105,108 @@ int main(int argc, char** argv )
         }
     }
 
+
+
     cv::imshow("Main", subsampled);
-    // permutation on subsampled image 
+    cv::waitKey(0); 
+
+    // ===================================================
+    // PERMUTATION 
+
+    // sequence for permutation
+    std::vector<unsigned int> sequence(subsampled.size[0]* subsampled.size[1]);
+    std::iota(sequence.begin(), sequence.end(), 0);
+
+    // generate a permutation sequence 
+    permuteSequence(sequence);
+
+    // permute data 
+    permuteData(subsampled, subpermutedImage, sequence); 
+
+    cv::imshow("Main", subpermutedImage);
+    cv::waitKey(0);
+
+    // Reconstructed blocks 
+    for (unsigned int ki = 0; ki < subreconstructedImage.size[0]; ki++)
+    {
+        for (unsigned int kj = 0; kj < subreconstructedImage.size[1]; kj++)
+        {
+            
+            for (unsigned int ti = 0; ti < sqrtblockSize; ti++)
+            {
+                for (unsigned int tj = 0; tj < sqrtblockSize; tj++)
+                {
+                    permutedImage.at<IMAGEMAT_TYPE>(ki*sqrtblockSize + ti, kj*sqrtblockSize +tj) = subpermutedImage.at<IMAGEMAT_TYPE>(ki, kj);
+                }
+
+            }
+        }
+    }
+
+    cv::imshow("Main", permutedImage);
+    cv::waitKey(0);
+
+
+    // ===================================================
+    // RECONSTRUCTION 
+
+    // downsampled 
+    for (unsigned int ki = 0; ki < subsampled.size[0]; ki++)
+    {
+        for (unsigned int kj = 0; kj < subsampled.size[1]; kj++)
+        {
+            subrecpermutedImage.at<IMAGEMAT_TYPE>(ki, kj) = permutedImage.at<IMAGEMAT_TYPE>(ki*sqrtblockSize, kj*sqrtblockSize); 
+        }
+    }
+
+    cv::imshow("Main", subrecpermutedImage);
+    cv::waitKey(0);
+    
+    // permute data 
+    invPermuteData(subrecpermutedImage, subreconstructedImage, sequence); 
+
+    cv::imshow("Main", subreconstructedImage);
+    cv::waitKey(0);
+
+    // oversampled 
+    for (unsigned int ki = 0; ki < subreconstructedImage.size[0]; ki++)
+    {
+        for (unsigned int kj = 0; kj < subreconstructedImage.size[1]; kj++)
+        {
+            
+            for (unsigned int ti = 0; ti < sqrtblockSize; ti++)
+            {
+                for (unsigned int tj = 0; tj < sqrtblockSize; tj++)
+                {
+                    reconstructedImg.at<IMAGEMAT_TYPE>(ki*sqrtblockSize + ti, kj*sqrtblockSize +tj) = subreconstructedImage.at<IMAGEMAT_TYPE>(ki, kj);
+                }
+
+            }
+        }
+    }
+
+
+    // ===================================================
+    // PSNR 
+    cv::Mat MSE(cv::Size(image.cols, image.rows), image.type(), cv::Scalar::all(0));
+    double imgpsnr = processPSNR(MSE, smoothedImage, reconstructedImg); 
+    std::cout << "PSNR IMAGE on blocky = " << imgpsnr << std::endl; 
+
+    cv::Mat MSE2(cv::Size(image.cols, image.rows), image.type(), cv::Scalar::all(0));
+    double imgpsnr2 = processPSNR(MSE2, image, reconstructedImg); 
+    std::cout << "PSNR IMAGE original versus blocky = " << imgpsnr2 << std::endl; 
+
+
+    cv::imshow("Main", reconstructedImg);
+    cv::waitKey(0);
+
+
+
+
+
+
+
+
 
 
 
