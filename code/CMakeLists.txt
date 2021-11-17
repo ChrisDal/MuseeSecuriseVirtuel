@@ -7,5 +7,5 @@ find_package( OpenCV REQUIRED )
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 
 # compile
-add_executable( ${PROJECT_NAME}.out catmap.cpp )
+add_executable( ${PROJECT_NAME}.out blockPermutation.cpp )
 target_link_libraries( ${PROJECT_NAME}.out ${OpenCV_LIBS} )
