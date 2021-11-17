@@ -12,7 +12,43 @@
 
 // Detection of oeuvre in image 
 
+float dissim(cv::Point p1, cv::Point p2)
+{
+    return static_cast<float>(std::sqrt((p2.x - p1.x) *(p2.x - p1.x) +  (p2.y - p1.y) *(p2.y - p1.y))); 
+}
 
+cv::Point getGravityCenter(std::vector<cv::Point> class1)
+{
+    float x = 0.0f; 
+    float y = 0.0f; 
+
+    for (cv::Point& p : class1)
+    {
+        x += p.x; 
+        y += p.y;  
+    }
+
+    x /= class1.size(); 
+    y /= class1.size(); 
+
+    return cv::Point(x, y); 
+}
+
+float wardDistance(std::vector<cv::Point> c1, std::vector<cv::Point> c2)
+{
+    float n1 = c1.size(); 
+    float n2 = c2.size(); 
+
+    float dw = 0.0f; 
+
+    dw = ((n1 * n2) / (n1 + n2)) * dissim(getGravityCenter(c1), getGravityCenter(c2)); 
+
+    return dw; 
+}
+
+
+
+// ======================================================================================
 
 
 int main( int argc, char** argv )
@@ -69,8 +105,6 @@ int main( int argc, char** argv )
         cv::circle( hierarchicalClustering, harrisCorners.at(i) , 5,  cv::Scalar(255, 0, 0, 255), 2, 8, 0 );
     }
 
-
-    
     cv::namedWindow( source_window );
     cv::imshow( source_window, image );
     cv::imshow( "Main", hierarchicalClustering );
