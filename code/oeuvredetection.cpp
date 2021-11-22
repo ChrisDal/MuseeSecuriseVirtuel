@@ -303,6 +303,53 @@ int main( int argc, char** argv )
     std::vector<int> vecClustered; 
     unconformedClustering(harrisCornersimg, vecClustered, centerImage, image.cols/6.0f ); 
 
+    // FEATURES DETECTION : Harris Corner Pattern 
+    std::vector<cv::Point> harrisCornerspattern; 
+    harrisCornerDetection(pattern, harrisCornerspattern, thresh, 4.0f); 
+  
+    // ===============================================================================================
+    // trying to find a good match for each clustered class 0 1 2 3
+    std::vector<cv::Point> pointofClass; 
+    int classWanted = 0; 
+    for (unsigned int k=0; k < vecClustered.size(); k++)
+    {
+        if (vecClustered.at(k) == classWanted)
+        {
+            pointofClass.push_back(harrisCornersimg.at(k)); 
+        }
+    }
+
+    // determine ROI 
+    cv::Point2f topleft = cv::Point2f(FLT_MAX, FLT_MAX); 
+    cv::Point2f bottomRight = cv::Point2f(FLT_MIN, FLT_MIN);
+    for (const cv::Point& p : pointofClass )
+    {
+        if (p.x <= topleft.x && p.y < topleft.y)
+        {
+            topleft = cv::Point2f(p);
+        }
+
+        if (p.x >= bottomRight.x && p.y > bottomRight.y)
+        {
+            bottomRight = cv::Point2f(p); 
+        }
+    } 
+
+    std::cout << " Point TopLeft " << topleft << "Point bottomRight " << bottomRight << std::endl; 
+    float xi = topleft.x - topleft.x*0.05f; 
+    float yi = topleft.y - topleft.y*0.05f; 
+    float wi = (bottomRight.x*1.05f - xi) < image.cols ?  (bottomRight.x*1.05f  - xi) : bottomRight.x ; 
+    float hi = (bottomRight.y*1.05f - yi) < image.rows ?  (bottomRight.y*1.05f  - yi) : bottomRight.y ; 
+
+    cv::Rect roi = cv::Rect(xi, yi, wi, hi);
+    cv::Mat image_roi = image(roi); 
+
+    cv::imshow("Image ROI", image_roi);  
+
+
+
+
+
 
     // display 
     cv::Mat hierarchicalClustering = cv::Mat::zeros(image.size[0], image.size[1], CV_8UC3); 
@@ -336,9 +383,15 @@ int main( int argc, char** argv )
         
     }
 
+    for( int i = 0; i < harrisCornerspattern.size() ; i++ )
+    {
+        cv::circle( pattern, harrisCornerspattern.at(i), 5,  cv::Scalar(0, 0, 0, 255), 2, 8, 0 ); 
+    }
+
     cv::namedWindow( source_window );
     cv::imshow( source_window, image );
     cv::imshow( "Main", hierarchicalClustering );
+    cv::imshow("Pattern", pattern); 
 
 
     
