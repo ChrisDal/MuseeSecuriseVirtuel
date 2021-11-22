@@ -336,8 +336,8 @@ int main( int argc, char** argv )
     } 
 
     std::cout << " Point TopLeft " << topleft << "Point bottomRight " << bottomRight << std::endl; 
-    float xi = topleft.x - topleft.x*0.05f; 
-    float yi = topleft.y - topleft.y*0.05f; 
+    float xi = topleft.x - topleft.x*0.05f > 0 ? topleft.x - topleft.x*0.05f : topleft.x; 
+    float yi = topleft.y - topleft.y*0.05f > 0 ? topleft.y - topleft.y*0.05f : topleft.y;
     float wi = (bottomRight.x*1.05f - xi) < image.cols ?  (bottomRight.x*1.05f  - xi) : bottomRight.x ; 
     float hi = (bottomRight.y*1.05f - yi) < image.rows ?  (bottomRight.y*1.05f  - yi) : bottomRight.y ; 
 
@@ -345,6 +345,9 @@ int main( int argc, char** argv )
     cv::Mat image_roi = image(roi); 
 
     cv::imshow("Image ROI", image_roi);  
+
+    // Match all features from pattern etendu to ROI
+    cv::Mat mathom = cv::findHomography(harrisCornerspattern, pointofClass, 1); 
 
 
 
