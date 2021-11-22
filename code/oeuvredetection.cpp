@@ -17,9 +17,9 @@
 
 // Detection of oeuvre in image 
 
-float dissim(cv::Point p1, cv::Point p2)
+float distance(cv::Point p1, cv::Point p2)
 {
-    return static_cast<float>(std::sqrt((p2.x - p1.x) *(p2.x - p1.x) +  (p2.y - p1.y) *(p2.y - p1.y))); 
+    return static_cast<float>(std::sqrt(std::pow(p2.x - p1.x,2) +  std::pow(p2.y - p1.y, 2))); 
 }
 
 cv::Point getGravityCenter(std::vector<cv::Point> class1)
@@ -51,7 +51,7 @@ float wardDistance(std::vector<cv::Point> c1, std::vector<cv::Point> c2)
 
     float dw = 0.0f; 
 
-    dw = ((n1 * n2) / (n1 + n2)) * dissim(getGravityCenter(c1), getGravityCenter(c2)); 
+    dw = ((n1 * n2) / (n1 + n2)) * distance(getGravityCenter(c1), getGravityCenter(c2)); 
 
     return dw; 
 }
@@ -59,7 +59,7 @@ float wardDistance(std::vector<cv::Point> c1, std::vector<cv::Point> c2)
 // min distance between the gravity center 
 float gravityDistance(std::vector<cv::Point> c1, std::vector<cv::Point> c2)
 {
-    return dissim(getGravityCenter(c1), getGravityCenter(c2)); 
+    return distance(getGravityCenter(c1), getGravityCenter(c2)); 
 }
 
 void hierarchicalCluster(const std::vector<cv::Point>& vecTocluster, int& Nclasses, std::vector<int>& vecClustered)
@@ -192,6 +192,52 @@ void unconformedClustering(const std::vector<cv::Point>& vecTocluster, std::vect
 
 }
 
+// remove duplicate points  
+void filterPoints(std::vector<cv::Point>& features, float threshold = std::sqrt(2))
+{
+    std::vector<int> index_todelete; 
+    int Npoints = 0; 
+    int overall = features.size(); 
+
+    float dist_mean = 0.0f; 
+    for (unsigned int k = 0; k < features.size(); k++ )
+    {
+        for (unsigned int j = k; j < features.size(); j++ )
+        {   
+            float dist = 0.0f;
+            if (j==k) { continue; }
+
+            dist = distance(features.at(j), features.at(k)); 
+
+
+            if (dist < threshold)
+            {
+                //std::cout << " Distance between point " << j << "," << k << " : " << dist << std::endl; 
+                index_todelete.push_back(j); 
+            } 
+        }
+    }
+
+
+    // filter unique value to remove 
+    std::sort(index_todelete.begin(), index_todelete.end()); 
+    index_todelete.erase(std::unique(index_todelete.begin(), index_todelete.end()),  index_todelete.end());
+    // remove from end to start  
+    std::sort(index_todelete.begin(), index_todelete.end(), std::greater<int>()); 
+
+    // erase duplicate on features vector 
+    auto it = features.begin(); 
+    for ( unsigned int k = 0; k < index_todelete.size(); k++)
+    {
+        //std::cout << " Remove point " << index_todelete.at(k) << std::endl;
+        Npoints++; 
+        features.erase(features.begin() + index_todelete.at(k) ); 
+    }
+
+    std::cout << "Filtering removed " << Npoints << "/" << overall << " points." << std::endl; 
+
+}
+
 // ======================================================================================
 
 
@@ -240,49 +286,9 @@ int main( int argc, char** argv )
     }
 
     
-
-    
-    // ===============================================================================================
     // filtering 
-    float threshold_filter = 4.0f; 
-    std::vector<int> index_todelete; 
-    float dist_mean = 0.0f; 
-    for (unsigned int k = 0; k < harrisCorners.size(); k++ )
-    {
-        for (unsigned int j = k; j < harrisCorners.size(); j++ )
-        {   
-            float dist = 0.0f;
-            if (j==k) { 
-                continue; 
-            }
-
-            dist = std::sqrt(std::pow(harrisCorners.at(j).x - harrisCorners.at(k).x, 2)  + std::pow(harrisCorners.at(j).y - harrisCorners.at(k).y, 2)); 
-            dist_mean += dist; 
-            //std::cout << "Distance between point " << j << "," << k << " : " << dist; 
-            if (dist < threshold_filter)
-            {
-                std::cout << " Distance between point " << j << "," << k << " : " << dist << std::endl; 
-                index_todelete.push_back(j); 
-            }
-            
-        }
-
-    }
-
-    dist_mean /= (float)harrisCorners.size(); 
-
-    // filter unique value 
-    std::sort(index_todelete.begin(), index_todelete.end()); 
-    index_todelete.erase(std::unique(index_todelete.begin(), index_todelete.end()),  index_todelete.end()); 
-    std::sort(index_todelete.begin(), index_todelete.end(), std::greater<int>()); 
-    // erase duplicate 
-    auto it = harrisCorners.begin(); 
-    for ( unsigned int k = 0; k < index_todelete.size(); k++)
-    {
-        std::cout << " Remove point " << index_todelete.at(k) << std::endl;
-        harrisCorners.erase(harrisCorners.begin() + index_todelete.at(k) ); 
-    }
-
+    filterPoints(harrisCorners,  4.0f); 
+    
 
     // ===============================================================================================
 
@@ -290,8 +296,10 @@ int main( int argc, char** argv )
     std::vector<int> vecClustered; 
     unconformedClustering(harrisCorners, vecClustered, centerImage, image.cols/6.0f ); 
 
+
+    // display 
+
     cv::Mat hierarchicalClustering = cv::Mat::zeros(image.size[0], image.size[1], CV_8UC3); 
-    cv::imshow( "Main", hierarchicalClustering );
     for( int i = 0; i < harrisCorners.size() ; i++ )
     {       
         cv::Scalar color = cv::Scalar(vecClustered.at(i)*20, 0,vecClustered.at(i)*20,255); 
@@ -314,9 +322,10 @@ int main( int argc, char** argv )
         }
         
         cv::circle( hierarchicalClustering, harrisCorners.at(i) , 5,  color, 2, 8, 0 );
-        std::cout << "Point "<< i << std::endl; 
+        // interactive display clustering
+        /*std::cout << "Point "<< i << std::endl; 
         cv::imshow( "Main", hierarchicalClustering );
-        cv::waitKey(0);
+        cv::waitKey(0);*/
         
     }
 
