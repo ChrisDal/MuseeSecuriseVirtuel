@@ -238,6 +238,40 @@ void filterPoints(std::vector<cv::Point>& features, float threshold = std::sqrt(
 
 }
 
+
+void harrisCornerDetection(const cv::Mat& img, std::vector<cv::Point>& harrisCorners, float threshHarris, float threshFilter=std::sqrt(2))
+{
+    int blockSize = 2;
+    int apertureSize = 3;
+    double k = 0.04;
+    harrisCorners.clear(); 
+    cv::Mat dst = cv::Mat::zeros( img.size(), CV_32FC1 );
+
+    cv::cornerHarris( img, dst, blockSize, apertureSize, k );
+    cv::Mat dst_norm; 
+    cv::Mat dst_norm_scaled;
+
+    cv::normalize( dst, dst_norm, 0, 255, cv::NORM_MINMAX, CV_32FC1, cv::Mat() );
+    cv::convertScaleAbs( dst_norm, dst_norm_scaled );
+    
+    // detect and display image corner 
+    for( int i = 0; i < dst_norm.rows ; i++ )
+    {
+        for( int j = 0; j < dst_norm.cols; j++ )
+        {
+            if( (int) dst_norm.at<float>(i,j) > threshHarris )
+            {
+                harrisCorners.push_back(cv::Point(j,i));
+                //cv::circle( image, cv::Point(j,i), 5,  cv::Scalar(0, 0, 0, 255), 2, 8, 0 );
+            }
+        }
+    }
+
+    
+    // FILTERING 
+    filterPoints(harrisCorners,  threshFilter); 
+}
+
 // ======================================================================================
 
 
@@ -259,48 +293,20 @@ int main( int argc, char** argv )
         return -1;
     }
 
-    int blockSize = 2;
-    int apertureSize = 3;
-    double k = 0.04;
-    cv::Mat dst = cv::Mat::zeros( image.size(), CV_32FC1 );
-
-    cv::cornerHarris( image, dst, blockSize, apertureSize, k );
-    cv::Mat dst_norm; 
-    cv::Mat dst_norm_scaled;
-
-    cv::normalize( dst, dst_norm, 0, 255, cv::NORM_MINMAX, CV_32FC1, cv::Mat() );
-    cv::convertScaleAbs( dst_norm, dst_norm_scaled );
-    
-    // detect and display image corner 
-    std::vector<cv::Point> harrisCorners; 
-    for( int i = 0; i < dst_norm.rows ; i++ )
-    {
-        for( int j = 0; j < dst_norm.cols; j++ )
-        {
-            if( (int) dst_norm.at<float>(i,j) > thresh )
-            {
-                harrisCorners.push_back(cv::Point(j,i));
-                cv::circle( image, cv::Point(j,i), 5,  cv::Scalar(0, 0, 0, 255), 2, 8, 0 );
-            }
-        }
-    }
-
-    
-    // filtering 
-    filterPoints(harrisCorners,  4.0f); 
-    
-
     // ===============================================================================================
-
+    // FEATURES DETECTION : Harris Corner 
+    std::vector<cv::Point> harrisCornersimg; 
+    harrisCornerDetection(image, harrisCornersimg, thresh, 4.0f); 
+    
+    // SET CLASS "CLUSTERING"
     cv::Point centerImage = { image.cols/2, image.rows/2 }; 
     std::vector<int> vecClustered; 
-    unconformedClustering(harrisCorners, vecClustered, centerImage, image.cols/6.0f ); 
+    unconformedClustering(harrisCornersimg, vecClustered, centerImage, image.cols/6.0f ); 
 
 
     // display 
-
     cv::Mat hierarchicalClustering = cv::Mat::zeros(image.size[0], image.size[1], CV_8UC3); 
-    for( int i = 0; i < harrisCorners.size() ; i++ )
+    for( int i = 0; i < harrisCornersimg.size() ; i++ )
     {       
         cv::Scalar color = cv::Scalar(vecClustered.at(i)*20, 0,vecClustered.at(i)*20,255); 
 
@@ -321,7 +327,8 @@ int main( int argc, char** argv )
             color = cv::Scalar(36,180,240,255); // BGR order 
         }
         
-        cv::circle( hierarchicalClustering, harrisCorners.at(i) , 5,  color, 2, 8, 0 );
+        cv::circle( hierarchicalClustering, harrisCornersimg.at(i) , 5,  color, 2, 8, 0 );
+        cv::circle( image, harrisCornersimg.at(i), 5,  cv::Scalar(0, 0, 0, 255), 2, 8, 0 ); 
         // interactive display clustering
         /*std::cout << "Point "<< i << std::endl; 
         cv::imshow( "Main", hierarchicalClustering );
