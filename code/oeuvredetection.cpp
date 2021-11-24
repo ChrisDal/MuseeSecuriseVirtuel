@@ -14,25 +14,27 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
+#include "opencv2/features2d.hpp"
 
 // Detection of oeuvre in image 
-
-float distance(cv::Point p1, cv::Point p2)
+template <typename T>
+float distance(T p1, T p2)
 {
     return static_cast<float>(std::sqrt(std::pow(p2.x - p1.x,2) +  std::pow(p2.y - p1.y, 2))); 
 }
 
-cv::Point getGravityCenter(std::vector<cv::Point> class1)
+template <typename T> 
+T getGravityCenter(std::vector<T> class1)
 {
     if (class1.size() == 1)
     {
         return class1.at(0); 
     }
     
-    float x = 0.0f; 
-    float y = 0.0f; 
+    typename T::value_type x = 0.0f; 
+    typename T::value_type y = 0.0f; 
 
-    for (cv::Point& p : class1)
+    for (T& p : class1)
     {
         x += p.x; 
         y += p.y;  
@@ -41,10 +43,11 @@ cv::Point getGravityCenter(std::vector<cv::Point> class1)
     x /= (float)class1.size(); 
     y /= (float)class1.size(); 
 
-    return cv::Point(x, y); 
+    return T(x, y); 
 }
 
-float wardDistance(std::vector<cv::Point> c1, std::vector<cv::Point> c2)
+template < typename T> 
+float wardDistance(std::vector<T> c1, std::vector<T> c2)
 {
     float n1 = (float)c1.size(); 
     float n2 = (float)c2.size(); 
@@ -56,13 +59,15 @@ float wardDistance(std::vector<cv::Point> c1, std::vector<cv::Point> c2)
     return dw; 
 }
 
-// min distance between the gravity center 
-float gravityDistance(std::vector<cv::Point> c1, std::vector<cv::Point> c2)
+// min distance between the gravity center
+template <typename T>  
+float gravityDistance(std::vector<T> c1, std::vector<T> c2)
 {
     return distance(getGravityCenter(c1), getGravityCenter(c2)); 
 }
 
-void hierarchicalCluster(const std::vector<cv::Point>& vecTocluster, int& Nclasses, std::vector<int>& vecClustered)
+template <typename T> 
+void hierarchicalCluster(const std::vector<T>& vecTocluster, int& Nclasses, std::vector<int>& vecClustered)
 {
     int N = vecTocluster.size(); 
     vecClustered.clear(); 
@@ -70,11 +75,11 @@ void hierarchicalCluster(const std::vector<cv::Point>& vecTocluster, int& Nclass
 
     bool reached_end = false; 
 
-    std::vector< std::vector<cv::Point> > vecClasses; // index = class 
+    std::vector< std::vector<T> > vecClasses; // index = class 
 
     for (unsigned  int k = 0; k < N; k++)
     {
-        std::vector<cv::Point> a = {vecTocluster.at(k)}; 
+        std::vector<T> a = {vecTocluster.at(k)}; 
         vecClasses.push_back(a); 
         vecClustered.push_back(k); 
     }
@@ -157,7 +162,8 @@ void hierarchicalCluster(const std::vector<cv::Point>& vecTocluster, int& Nclass
 
 
 // clustered with 4 classes 
-void unconformedClustering(const std::vector<cv::Point>& vecTocluster, std::vector<int>& vecClustered, const cv::Point& center, float radius=0.0f)
+template <typename T> 
+void unconformedClustering(const std::vector<T>& vecTocluster, std::vector<int>& vecClustered, const T& center, float radius=0.0f)
 {
     vecClustered.clear(); 
     vecClustered.reserve(vecTocluster.size()); 
@@ -193,7 +199,8 @@ void unconformedClustering(const std::vector<cv::Point>& vecTocluster, std::vect
 }
 
 // remove duplicate points  
-void filterPoints(std::vector<cv::Point>& features, float threshold = std::sqrt(2))
+template <typename T> 
+void filterPoints(std::vector<T>& features, float threshold = std::sqrt(2))
 {
     std::vector<int> index_todelete; 
     int Npoints = 0; 
@@ -238,8 +245,8 @@ void filterPoints(std::vector<cv::Point>& features, float threshold = std::sqrt(
 
 }
 
-
-void harrisCornerDetection(const cv::Mat& img, std::vector<cv::Point>& harrisCorners, float threshHarris, float threshFilter=std::sqrt(2))
+template <typename T> 
+void harrisCornerDetection(const cv::Mat& img, std::vector<T>& harrisCorners, float threshHarris, float threshFilter=std::sqrt(2))
 {
     int blockSize = 2;
     int apertureSize = 3;
@@ -261,7 +268,7 @@ void harrisCornerDetection(const cv::Mat& img, std::vector<cv::Point>& harrisCor
         {
             if( (int) dst_norm.at<float>(i,j) > threshHarris )
             {
-                harrisCorners.push_back(cv::Point(j,i));
+                harrisCorners.push_back( T(j,i) );
                 //cv::circle( image, cv::Point(j,i), 5,  cv::Scalar(0, 0, 0, 255), 2, 8, 0 );
             }
         }
@@ -295,21 +302,21 @@ int main( int argc, char** argv )
 
     // ===============================================================================================
     // FEATURES DETECTION : Harris Corner 
-    std::vector<cv::Point> harrisCornersimg; 
+    std::vector<cv::Point2f> harrisCornersimg; 
     harrisCornerDetection(image, harrisCornersimg, thresh, 4.0f); 
     
     // SET CLASS "CLUSTERING"
-    cv::Point centerImage = { image.cols/2, image.rows/2 }; 
+    cv::Point2f centerImage = { image.cols/2.0f, image.rows/2.0f }; 
     std::vector<int> vecClustered; 
     unconformedClustering(harrisCornersimg, vecClustered, centerImage, image.cols/6.0f ); 
 
     // FEATURES DETECTION : Harris Corner Pattern 
-    std::vector<cv::Point> harrisCornerspattern; 
+    std::vector<cv::Point2f> harrisCornerspattern; 
     harrisCornerDetection(pattern, harrisCornerspattern, thresh, 4.0f); 
   
     // ===============================================================================================
     // trying to find a good match for each clustered class 0 1 2 3
-    std::vector<cv::Point> pointofClass; 
+    std::vector<cv::Point2f> pointofClass; 
     int classWanted = 0; 
     for (unsigned int k=0; k < vecClustered.size(); k++)
     {
@@ -322,7 +329,7 @@ int main( int argc, char** argv )
     // determine ROI 
     cv::Point2f topleft = cv::Point2f(FLT_MAX, FLT_MAX); 
     cv::Point2f bottomRight = cv::Point2f(FLT_MIN, FLT_MIN);
-    for (const cv::Point& p : pointofClass )
+    for (const cv::Point2f& p : pointofClass )
     {
         if (p.x <= topleft.x && p.y < topleft.y)
         {
@@ -347,7 +354,7 @@ int main( int argc, char** argv )
     cv::imshow("Image ROI", image_roi);  
 
     // Match all features from pattern etendu to ROI
-    cv::Mat mathom = cv::findHomography(harrisCornerspattern, pointofClass, 1); 
+    //cv::Mat mathom = cv::findHomography(harrisCornerspattern, pointofClass, 1); 
 
 
 
