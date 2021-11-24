@@ -182,6 +182,19 @@ void concatenateFourMat(cv::Mat& concatdisplayImage, const cv::Mat& A, const cv:
 
 }
 
+void realConcatenateTwoMat(cv::Mat& concatdisplayImage, const cv::Mat& A, const cv::Mat& B )
+{
+   // display our images 
+    concatdisplayImage = cv::Mat(cv::Size(A.cols + B.cols, A.rows + B.rows), A.type(), cv::Scalar::all(0)); 
+    // Create ROI and Copy A to it
+    cv::Mat matRoi = concatdisplayImage(cv::Rect(0,0,A.cols, A.rows));
+    A.copyTo(matRoi);
+    // Copy B to ROI
+    matRoi = concatdisplayImage(cv::Rect(A.cols, 0, B.cols, B.rows));
+    B.copyTo(matRoi);
+
+}
+
 
 
 

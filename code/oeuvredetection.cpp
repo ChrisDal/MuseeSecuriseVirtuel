@@ -14,9 +14,12 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
-#include "opencv2/features2d.hpp"
+#include <opencv2/features2d.hpp>
+#include <opencv2/calib3d.hpp>
+
 
 // Detection of oeuvre in image 
+// Euclidian Distance 
 template <typename T>
 float distance(T p1, T p2)
 {
@@ -316,13 +319,15 @@ int main( int argc, char** argv )
   
     // ===============================================================================================
     // trying to find a good match for each clustered class 0 1 2 3
-    std::vector<cv::Point2f> pointofClass; 
-    int classWanted = 0; 
+    std::vector<cv::Point2f> pointofClass;
+    cv::Point2f meanPoint(0.0f, 0.0f);  
+    int classWanted = 1; 
     for (unsigned int k=0; k < vecClustered.size(); k++)
     {
         if (vecClustered.at(k) == classWanted)
         {
             pointofClass.push_back(harrisCornersimg.at(k)); 
+            
         }
     }
 
@@ -348,15 +353,116 @@ int main( int argc, char** argv )
     float wi = (bottomRight.x*1.05f - xi) < image.cols ?  (bottomRight.x*1.05f  - xi) : bottomRight.x ; 
     float hi = (bottomRight.y*1.05f - yi) < image.rows ?  (bottomRight.y*1.05f  - yi) : bottomRight.y ; 
 
+    // Find the mean center 
+    cv::Point2f ancragePoint(0.0f, 0.0f); 
+
+    if (pointofClass.size() == 16)
+    {
+        // lucky we got all points
+        for (unsigned int k=0; k <  pointofClass.size(); k++)
+        {
+            ancragePoint.x += pointofClass[k].x; 
+            ancragePoint.y += pointofClass[k].y; 
+        }
+
+        ancragePoint.x /= (float)pointofClass.size(); 
+        ancragePoint.y /= (float)pointofClass.size(); 
+    }
+
+
+
+
     cv::Rect roi = cv::Rect(xi, yi, wi, hi);
     cv::Mat image_roi = image(roi); 
-
     cv::imshow("Image ROI", image_roi);  
 
-    // Match all features from pattern etendu to ROI
-    //cv::Mat mathom = cv::findHomography(harrisCornerspattern, pointofClass, 1); 
+    // Match all features from pattern etendu to ROI 
+    // take one keypoint descriptor - ref = pattern 
+    std::vector< std::vector<std::pair < float , cv::Point2f> > > matches; 
+    matches.reserve(pointofClass.size()); 
+    std::vector< std::pair<float, int> > distPoints = {}; 
+    std::vector<bool> pointChoosen(pointofClass.size(), false);
+    
+    for (unsigned int k = 0; k < pointofClass.size(); k++)
+    {
+        distPoints.clear(); 
+        std::vector<std::pair< float, cv::Point2f>> pointMatch; 
+         
+
+        //distance calculations 
+
+        for (unsigned int i = 0; i < pointofClass.size(); i++)
+        {
+            if (pointChoosen[i])
+            {
+                continue; 
+            }
+
+            float scale_factorx = (float)(pattern.cols)/ (float)wi ;   
+            float scale_factory = (float)(pattern.rows)/ (float)hi ;   
+            cv::Point2f point_harris_scaled = (pointofClass[i] - cv::Point2f(xi, xi)); 
+            point_harris_scaled.x *= scale_factorx; 
+            point_harris_scaled.y *= scale_factory; 
+
+            float di = distance(harrisCornerspattern[k], point_harris_scaled); 
+             
+            distPoints.push_back(std::make_pair(di, i)); 
+        }
+
+        // Sort by distance 
+        std::sort(distPoints.begin(), distPoints.end());
+        std::cout << "Distance between Pattern[" << k << "] & distance p1=" << distPoints[0].first << " & distance p2=" <<  distPoints[1].first << "\n" << std::endl; 
+        // take the first 2 
+        pointMatch.push_back(std::make_pair(distPoints[0].first, pointofClass[distPoints[0].second])); 
+        pointMatch.push_back(std::make_pair(distPoints[1].first, pointofClass[distPoints[1].second]));
+        // invalidate first one to tak e
+        pointChoosen[distPoints[0].second] = true; 
+        matches.push_back(pointMatch);  
+        pointMatch.clear(); 
+    }
 
 
+ 
+    //-- Filter matches using the Lowe's ratio test
+    const float ratio_thresh = 0.998f;
+    std::vector< cv::Point2f > good_matches;
+
+    for (int i = 0; i < matches.size(); i++)
+    {
+        std::cout << " Match 0=" << matches[i][0].first << " Match 1=" <<matches[i][1].first << std::endl;
+        if (matches[i][0].first < ratio_thresh * matches[i][1].first) {
+            good_matches.push_back(matches[i][0].second);
+            std::cout << "Find Match for point " << harrisCornerspattern[i] << " => " << matches[i][0].second <<" \n"; 
+            continue; 
+        }
+
+        good_matches.push_back(cv::Point2f(-1,-1));
+
+    }
+
+
+
+    // Draw matches
+    cv::Mat img_matches;
+    realConcatenateTwoMat(img_matches, pattern, image); 
+
+    cv::Rect roi2 = cv::Rect(pattern.cols, 0, image.cols, image.rows);
+    cv::Mat img_withmatchesROI = img_matches(roi2);
+
+    // 
+    /*cv::Mat H = cv::findHomography(harrisCornerspattern, good_matches, 3); 
+    std::vector<cv::Point2f> obj_corners(4);
+    obj_corners[0] = cv::Point2f(0.0f, 0.0f); 
+    obj_corners[1] = cv::Point2f((float)pattern.cols, 0.0f); 
+    obj_corners[2] = cv::Point2f((float)pattern.cols, (float)pattern.rows);  
+    obj_corners[3] = cv::Point2f(0.0f, (float)pattern.rows);
+    std::vector<cv::Point2f> scene_corners(4);
+    cv::perspectiveTransform(obj_corners, scene_corners, H ); */
+
+
+
+
+    
 
 
 
@@ -386,22 +492,53 @@ int main( int argc, char** argv )
         
         cv::circle( hierarchicalClustering, harrisCornersimg.at(i) , 5,  color, 2, 8, 0 );
         cv::circle( image, harrisCornersimg.at(i), 5,  cv::Scalar(0, 0, 0, 255), 2, 8, 0 ); 
+        cv::circle(img_withmatchesROI, harrisCornersimg.at(i) , 5,  color, 2, 8, 0 ); 
         // interactive display clustering
-        /*std::cout << "Point "<< i << std::endl; 
-        cv::imshow( "Main", hierarchicalClustering );
-        cv::waitKey(0);*/
+        //std::cout << "Point "<< i << std::endl; 
+        //cv::imshow( "Main", hierarchicalClustering );
+        //cv::waitKey(0);
         
     }
 
+    roi2 = cv::Rect(0, 0, pattern.cols, pattern.rows);
+    cv::Mat pattern_withmatchesROI = img_matches(roi2);
+
     for( int i = 0; i < harrisCornerspattern.size() ; i++ )
     {
-        cv::circle( pattern, harrisCornerspattern.at(i), 5,  cv::Scalar(0, 0, 0, 255), 2, 8, 0 ); 
+        cv::circle( pattern, harrisCornerspattern.at(i), 5,  
+                    cv::Scalar(0, 0, 0, 255), 2, 8, 0 ); 
+        cv::circle( pattern_withmatchesROI,harrisCornerspattern.at(i), 5,  
+                    cv::Scalar(0, 0, 0, 255), 2, 8, 0 ); 
+        
+    }
+
+    // draw matches 
+    for (unsigned int k = 0; k < good_matches.size(); k++ )
+    {   
+        // translated point 
+        cv::Point2f gm = good_matches[k] + cv::Point2f(pattern.rows, 0.0f);  
+        if (good_matches[k] == cv::Point2f(-1, -1))
+        {
+            std::cout << "No Match for point " << harrisCornerspattern[k] << "\n"; 
+            continue; 
+        }
+        cv::line(img_matches, harrisCornerspattern[k],  gm, cv::Scalar(120,120,120,255), 3);
+
+        /*cv::line(img_matches, scene_corners[0] + cv::Point2f((float)pattern.cols, 0),
+                scene_corners[1] + cv::Point2f((float)pattern.cols, 0), cv::Scalar(0, 255, 0), 4); 
+        cv::line( img_matches, scene_corners[1] + cv::Point2f((float)pattern.cols, 0),
+          scene_corners[2] + cv::Point2f((float)pattern.cols, 0), cv::Scalar( 0, 255, 0), 4 );
+        cv::line( img_matches, scene_corners[2] + cv::Point2f((float)pattern.cols, 0),
+            scene_corners[3] + cv::Point2f((float)pattern.cols, 0), cv::Scalar( 0, 255, 0), 4 );
+        cv::line( img_matches, scene_corners[3] + cv::Point2f((float)pattern.cols, 0),
+            scene_corners[0] + cv::Point2f((float)pattern.cols, 0), cv::Scalar( 0, 255, 0), 4 );*/
     }
 
     cv::namedWindow( source_window );
     cv::imshow( source_window, image );
     cv::imshow( "Main", hierarchicalClustering );
     cv::imshow("Pattern", pattern); 
+    cv::imshow("Good Matches", img_matches );
 
 
     
