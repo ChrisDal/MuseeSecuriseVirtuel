@@ -665,7 +665,7 @@ int main( int argc, char** argv )
     }
     else 
     {
-        topLeft.x = (intersections[0].x +  intersections[2].x) / 2.0f;
+        topLeft.x = std::min(intersections[0].x , intersections[2].x);
     }
 
     if ( std::abs(intersections[0].y - intersections[1].y) > (image.size[0]*0.10f))
@@ -675,7 +675,7 @@ int main( int argc, char** argv )
     }
     else 
     {
-        topLeft.y = (intersections[0].y +  intersections[1].y) / 2.0f;
+        topLeft.y = std::max(intersections[0].y ,intersections[1].y);
     }
 
     cv::Point2f botRight;
@@ -686,7 +686,7 @@ int main( int argc, char** argv )
     }
     else 
     {
-        botRight.x = (intersections[1].x +  intersections[3].x) / 2.0f;
+        botRight.x = std::max(intersections[1].x , intersections[3].x);
     }
 
     if ( std::abs(intersections[2].y - intersections[3].y) > (image.size[0]*0.10f))
@@ -696,15 +696,24 @@ int main( int argc, char** argv )
     }
     else 
     {
-        botRight.y = (intersections[2].y +  intersections[3].y) / 2.0f;
+        botRight.y = std::max(intersections[2].y, intersections[3].y);
     }
 
 
-    cv::Rect roiImage = cv::Rect(topLeft.x, topLeft.y,
-                                botRight.x-topLeft.x,
-                                botRight.y-topLeft.y);
+    cv::Rect roiImage = cv::Rect((int)topLeft.x, (int)topLeft.y,
+                                std::ceil(botRight.x-topLeft.x),
+                                std::ceil(botRight.y-topLeft.y));
     std::cout << topLeft.x << std::endl; 
     cv::Mat outDetectedImage = image(roiImage);
+
+
+    // stripped white line 
+    float allsmae; 
+    unsigned char value =  outDetectedImage.at<IMAGEMAT_TYPE>(0, x); 
+    for (int x=0; x < image.size[1] ; x++)
+    {
+        allsame &= outDetectedImage.at<IMAGEMAT_TYPE>(0, x) == value; 
+    }
 
 
 
