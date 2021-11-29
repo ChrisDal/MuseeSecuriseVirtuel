@@ -4,6 +4,7 @@
 #include <functional>
 #include <array>
 #include <cfloat>
+#include <map>
 
 #include "BasePermutation.h"
 #include "imageanalysis.h"
@@ -17,6 +18,8 @@
 #include <opencv2/features2d.hpp>
 #include <opencv2/calib3d.hpp>
 
+
+#define DEBUG_ON_DISPLAY 1
 
 // Detection of oeuvre in image 
 // Euclidian Distance 
@@ -307,7 +310,7 @@ cv::Point2f getIndexOfPoint(const std::vector<cv::Point2f>& classifiedPoint, int
     std::cout << "Class c=" << cornerType << std::endl; 
     int krows = (int)(width/dsize);  // image.size[1]
     int kcols = (int)(height/dsize); // image.size[0]
-    int numberMinPoints = 2; 
+    unsigned int numberMinPoints = 2; 
 
     std::vector<unsigned int> historows(krows,  0.f); 
     std::vector<unsigned int> histocols(kcols,  0.f);
@@ -382,7 +385,88 @@ cv::Point2f getIndexOfPoint(const std::vector<cv::Point2f>& classifiedPoint, int
     return index; 
 
 }
+
+std::vector<std::pair<float, float>> houghAnalysis(const std::vector<cv::Point2f>& vecClassified, int width, int height, 
+                                                    float dtheta=1.5f, float drho = 3.2f, float maxtheta=180.f)
+{
+
+    //int imgWidth = image.size[1]; 
+    //int imgHeight = image.size[0]; 
+
+    double maxRho = std::sqrt(width*width + height*height); 
+
+    int Ntheta = (int)(maxtheta / dtheta) + 1;
+    int Nrho   = (int)(maxRho / drho) + 1; 
+
+    // Hough transformation  
+    std::vector<std::vector<unsigned int> > houghvec(Ntheta, std::vector<unsigned int>(Nrho, 0));   
+
+    // pour chaque point 
+    for (const cv::Point2f& p : vecClassified)
+    {
+        for (unsigned int k=0; k < Ntheta; k++)
+        {
+            float theta = dtheta * (float)k * 3.14f / 180.0f; 
+            float rho = p.x * std::cos(theta) + p.y * std::sin(theta); 
+
+            int krho = (int) std::abs(rho / drho); 
+            houghvec[k][krho] += 1; 
+        }
+    }
+
+    cv::Mat testMat = cv::Mat::zeros(Nrho, Ntheta, CV_8UC1); 
+    const unsigned int minVotes = 4; 
+    std::vector<std::pair<float, float>> winnerTuple; 
+    for (unsigned int k = 0; k < Ntheta; k++)
+    {
+        for (unsigned int i = 0; i < Nrho; i++)
+        {
+            
+            testMat.at<uchar>(i, k) = 50*houghvec[k][i]; 
+            if (houghvec[k][i] >= minVotes) {
+                winnerTuple.emplace_back((float)k*dtheta, i*drho); 
+            }
+        }
+    }
+
+    for (const std::pair<float, float>& wint : winnerTuple)
+    {
+        std::cout << "Pair : <" << wint.first << "," << wint.second << ">\n"; 
+    }
+
+    if (DEBUG_ON_DISPLAY)
+    {
+        cv::imshow(" Hough Mat" , testMat); 
+        cv::waitKey(0); 
+    }
+
+    return winnerTuple; 
+}
+
+
+void displayHoughLines(const std::vector< std::pair<float, float> >& analysisresult, cv::Mat& imageOndisp)
+{
+    for (const std::pair<float, float>& lines : analysisresult)
+    {
+        float rho = lines.second; 
+        float theta = lines.first * 3.14f / 180.0f; // theta = degree
+
+        float a = std::cos(theta); 
+        float b = std::sin(theta); 
+        cv::Point2f p0(rho * a, rho * b); 
+
+        cv::Point2f p1(p0.x + (int)(10000 * (-b)), p0.y + (int)(10000*a)); 
+        cv::Point2f p2(p0.x - (int)(10000 * (-b)), p0.y - (int)(10000*a)); 
+
+        cv::line(imageOndisp ,p1, p2, cv::Scalar(0,0,255, 255)); 
+
+        cv::imshow("Line Houghs", imageOndisp); 
+        cv::waitKey(0); 
+
+    }
     
+}
+
 
 // ======================================================================================
 
@@ -512,10 +596,14 @@ int main( int argc, char** argv )
 
         // Sort by distance 
         std::sort(distPoints.begin(), distPoints.end());
-        std::cout << "Distance between Pattern[" << k << "] & distance p1=" << distPoints[0].first << " & distance p2=" <<  distPoints[1].first << "\n" << std::endl; 
-        // take the first 2 
-        pointMatch.push_back(std::make_pair(distPoints[0].first, pointofClass[distPoints[0].second])); 
-        pointMatch.push_back(std::make_pair(distPoints[1].first, pointofClass[distPoints[1].second]));
+        pointMatch.push_back(std::make_pair(distPoints[0].first, pointofClass[distPoints[0].second]));
+        if (distPoints.size() > 1)
+        {
+            std::cout << "Distance between Pattern[" << k << "] & distance p1=" << distPoints[0].first << " & distance p2=" <<  distPoints[1].first << "\n" << std::endl; 
+            pointMatch.push_back(std::make_pair(distPoints[1].first, pointofClass[distPoints[1].second]));
+        }// take the first 2 
+         
+        
         // invalidate first one to tak e
         pointChoosen[distPoints[0].second] = true; 
         matches.push_back(pointMatch);  
@@ -530,12 +618,26 @@ int main( int argc, char** argv )
 
     for (int i = 0; i < matches.size(); i++)
     {
-        std::cout << " Match 0=" << matches[i][0].first << " Match 1=" <<matches[i][1].first << std::endl;
-        if (matches[i][0].first < ratio_thresh * matches[i][1].first) {
+
+        if (matches[i].size() == 1)
+        {
             good_matches.push_back(matches[i][0].second);
             std::cout << "Find Match for point " << harrisCornerspattern[i] << " => " << matches[i][0].second <<" \n"; 
             continue; 
         }
+
+        if (matches[i].size() > 1)
+        {
+            std::cout << " Match 0=" << matches[i][0].first << " Match 1=" <<matches[i][1].first << std::endl;
+            if (matches[i][0].first < ratio_thresh * matches[i][1].first) {
+                good_matches.push_back(matches[i][0].second);
+                std::cout << "Find Match for point " << harrisCornerspattern[i] << " => " << matches[i][0].second <<" \n"; 
+                continue; 
+            }
+
+        }
+        
+        
 
         good_matches.push_back(cv::Point2f(-1,-1));
 
@@ -553,40 +655,16 @@ int main( int argc, char** argv )
     // --------------------------------------------------------
     // HOUGH TRANFORMATION 
     // 0 à 2pi 
+
+    int imgWidth = image.size[1]; 
+    int imgHeight = image.size[0]; 
+    float diag = std::sqrt(imgWidth*imgWidth + imgHeight*imgHeight); 
     
-    float dtheta = 5.0f; 
-    float maxtheta = 180.0f; 
-    int Ntheta  = (int) (maxtheta / dtheta);
-    float drho = 10.f;  
-    int houghcols = (int)(image.size[1]/drho); 
+    std::vector<std::pair<float, float>> houghlines = houghAnalysis(pointofClass, imgWidth, imgHeight, 2.f, diag*0.000715f ); 
+    displayHoughLines(houghlines, image); 
 
-    // Hough transformation  
-    std::vector<std::vector<unsigned int> > houghvec(Ntheta, std::vector<unsigned int>(houghcols, 0));   
 
-    // pour chaque point 
-    for (const cv::Point& p : pointofClass)
-    {
-        float xk = p.x; 
-        float yk = p.y; 
 
-        float theta = 0.0f; 
-
-        for (int i = 0; i < Ntheta; i++)
-        {
-            theta += dtheta; 
-            float theta_rad = theta * 3.14f / 180.0f; 
-            float rho = xk*cos(theta_rad) + yk*sin(theta_rad); 
-            int j = (int)(rho / drho);    
-
-            if (j >= 0)
-            {
-                houghvec[i][j] += 1; 
-                std::cout << "Rho = " << rho << " theta = " << theta << std::endl; 
-                std::cout << "j = " << j << " i="<< i << std::endl;
-            }
-                       
-        }
-    }
     // --------------------------------------------------------
 
     
@@ -708,18 +786,7 @@ int main( int argc, char** argv )
 
 
     // stripped white line 
-    float allsmae; 
-    unsigned char value =  outDetectedImage.at<IMAGEMAT_TYPE>(0, x); 
-    for (int x=0; x < image.size[1] ; x++)
-    {
-        allsame &= outDetectedImage.at<IMAGEMAT_TYPE>(0, x) == value; 
-    }
 
-
-
-    
-
- 
     // =====================================================
 
 
@@ -748,15 +815,6 @@ int main( int argc, char** argv )
             continue; 
         }
         cv::line(img_matches, harrisCornerspattern[k],  gm, cv::Scalar(120,120,120,255), 3);
-
-        /*cv::line(img_matches, scene_corners[0] + cv::Point2f((float)pattern.cols, 0),
-                scene_corners[1] + cv::Point2f((float)pattern.cols, 0), cv::Scalar(0, 255, 0), 4); 
-        cv::line( img_matches, scene_corners[1] + cv::Point2f((float)pattern.cols, 0),
-          scene_corners[2] + cv::Point2f((float)pattern.cols, 0), cv::Scalar( 0, 255, 0), 4 );
-        cv::line( img_matches, scene_corners[2] + cv::Point2f((float)pattern.cols, 0),
-            scene_corners[3] + cv::Point2f((float)pattern.cols, 0), cv::Scalar( 0, 255, 0), 4 );
-        cv::line( img_matches, scene_corners[3] + cv::Point2f((float)pattern.cols, 0),
-            scene_corners[0] + cv::Point2f((float)pattern.cols, 0), cv::Scalar( 0, 255, 0), 4 );*/
     }
 
     cv::namedWindow( source_window );
