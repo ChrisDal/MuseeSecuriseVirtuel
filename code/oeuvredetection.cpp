@@ -321,7 +321,7 @@ int main( int argc, char** argv )
     // trying to find a good match for each clustered class 0 1 2 3
     std::vector<cv::Point2f> pointofClass;
     cv::Point2f meanPoint(0.0f, 0.0f);  
-    int classWanted = 1; 
+    int classWanted = 0; 
     for (unsigned int k=0; k < vecClustered.size(); k++)
     {
         if (vecClustered.at(k) == classWanted)
@@ -460,10 +460,44 @@ int main( int argc, char** argv )
     cv::perspectiveTransform(obj_corners, scene_corners, H ); */
 
 
+    
+    // 0 à 2pi 
+    
+    float dtheta = 5.0f; 
+    float maxtheta = 180.0f; 
+    int Ntheta  = (int) (maxtheta / dtheta);
+    float drho = 10.f;  
+    int houghcols = (int)(image.size[1]/drho); 
 
+    // Hough transformation  
+    std::vector<std::vector<unsigned int> > houghvec(Ntheta, std::vector<unsigned int>(houghcols, 0));   
+
+    // pour chaque point 
+    for (const cv::Point& p : pointofClass)
+    {
+        float xk = p.x; 
+        float yk = p.y; 
+
+        float theta = 0.0f; 
+
+        for (int i = 0; i < Ntheta; i++)
+        {
+            theta += dtheta; 
+            float theta_rad = theta * 3.14f / 180.0f; 
+            float rho = xk*cos(theta_rad) + yk*sin(theta_rad); 
+            int j = (int)(rho / drho);    
+
+            if (j >= 0)
+            {
+                houghvec[i][j] += 1; 
+                std::cout << "Rho = " << rho << " theta = " << theta << std::endl; 
+                std::cout << "j = " << j << " i="<< i << std::endl;
+            }
+                       
+        }
+    }
 
     
-
 
 
 
@@ -497,8 +531,64 @@ int main( int argc, char** argv )
         //std::cout << "Point "<< i << std::endl; 
         //cv::imshow( "Main", hierarchicalClustering );
         //cv::waitKey(0);
+
+        
         
     }
+    // =====================================================
+    // Histogram per line 
+    float dxy = 5.0f; // histo per bin of drow
+    int krows = (int)image.size[1]/dxy; 
+    int kcols = (int)image.size[0]/dxy;
+    std::vector<unsigned int> historows(krows,  0.f); 
+    std::vector<unsigned int> histocols(kcols,  0.f); 
+
+    for (const cv::Point& p : pointofClass)
+    {
+        int kx = (int)(p.x /dxy); 
+        int ky = (int)(p.y /dxy); 
+
+        historows[kx] += 1; 
+        histocols[ky] += 1; 
+    }
+
+    int last_indexY = 0;
+    int last_indexX = 0;  
+     
+    for (unsigned int k = 0; k< historows.size(); k++)
+    {
+        std::cout << historows[k] << "," ; 
+        if (historows[k] > 2) {
+            last_indexX = k; 
+        }
+    }
+
+    std::cout << std::endl; 
+
+    for (unsigned int k = 0; k< histocols.size(); k++)
+    {
+        std::cout << histocols[k] << "," ; 
+        if (histocols[k] > 2) {
+            last_indexY = k; 
+        }
+    }
+    std::cout << std::endl;
+    
+    // vertical line 
+    cv::line(hierarchicalClustering, 
+            cv::Point2f((float)last_indexX*dxy, 0.0f),   
+            cv::Point2f((float)last_indexX*dxy, hierarchicalClustering.size[0]), 
+            cv::Scalar(255,0,0,255));
+    // horizontal Line 
+    cv::line(hierarchicalClustering, 
+            cv::Point2f(0.0f, (float)last_indexY*dxy),   
+            cv::Point2f(hierarchicalClustering.size[1], (float)last_indexY*dxy), 
+            cv::Scalar(255,0,0,255));
+
+    // =====================================================
+
+
+
 
     roi2 = cv::Rect(0, 0, pattern.cols, pattern.rows);
     cv::Mat pattern_withmatchesROI = img_matches(roi2);
