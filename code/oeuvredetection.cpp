@@ -519,31 +519,7 @@ int main( int argc, char** argv )
         }
     }
 
-    // determine ROI 
-    cv::Point2f topleft = cv::Point2f(FLT_MAX, FLT_MAX); 
-    cv::Point2f bottomRight = cv::Point2f(FLT_MIN, FLT_MIN);
-    for (const cv::Point2f& p : pointofClass )
-    {
-        if (p.x <= topleft.x && p.y < topleft.y)
-        {
-            topleft = cv::Point2f(p);
-        }
-
-        if (p.x >= bottomRight.x && p.y > bottomRight.y)
-        {
-            bottomRight = cv::Point2f(p); 
-        }
-    } 
-
-    std::cout << " Point TopLeft " << topleft << "Point bottomRight " << bottomRight << std::endl; 
-    float xi = topleft.x - topleft.x*0.05f > 0 ? topleft.x - topleft.x*0.05f : topleft.x; 
-    float yi = topleft.y - topleft.y*0.05f > 0 ? topleft.y - topleft.y*0.05f : topleft.y;
-    float wi = (bottomRight.x*1.05f - xi) < image.cols ?  (bottomRight.x*1.05f  - xi) : bottomRight.x ; 
-    float hi = (bottomRight.y*1.05f - yi) < image.rows ?  (bottomRight.y*1.05f  - yi) : bottomRight.y ; 
-
-    cv::Rect roi = cv::Rect(xi, yi, wi, hi);
-    cv::Mat pattern_extracted = image(roi); 
-    cv::imshow("Image ROI", pattern_extracted);  
+    
 
     // =========================================================
     // HOUGH TRANFORMATION 
@@ -562,7 +538,6 @@ int main( int argc, char** argv )
     // All points that belongs to a line are valid 
     // Valid only these points 
 
-    std::vector<cv::Point2f> validPointsbyHough; 
     std::vector<unsigned int> validIndexbyHough; 
     /* theta, rho */
     
@@ -573,22 +548,21 @@ int main( int argc, char** argv )
         {
             float rho = line.second; 
             float theta = line.first; 
-
             float rhop = pointofClass[k].x*std::cos(theta * 3.14f /180.0f) + pointofClass[k].y*std::sin(theta * 3.14f /180.0f); 
 
             if (std::abs(std::abs(rhop) - rho) < drho)
             {
                 validIndexbyHough.push_back(k);
                 if (DEBUG_ON_DISPLAY){
-
                     std::cout << "Point valid by Hough : " <<  pointofClass[k].x  << "," << pointofClass[k].y << std::endl; 
                 }
-                
+
                 break;
             }
             
         }
     }
+
 
     // Remove invalid points
     std::vector <unsigned int> removeIndex;  
@@ -609,10 +583,61 @@ int main( int argc, char** argv )
     if (DEBUG_ON_DISPLAY){ 
         std::cout << "Number of valid points by Hough = " << pointofClass.size() << std::endl; 
     }
-                
+    // ==========================================================================================
+    // determine ROI 
+    cv::Point2f topLeft = cv::Point2f(FLT_MAX, FLT_MAX); 
+    cv::Point2f topRight = cv::Point2f(FLT_MIN, FLT_MAX); 
+    cv::Point2f bottomLeft = cv::Point2f(FLT_MAX, FLT_MIN);
+    cv::Point2f bottomRight = cv::Point2f(FLT_MIN, FLT_MIN);
+    for (const cv::Point2f& p : pointofClass )
+    {
+        if (p.x <= topLeft.x && p.y < topLeft.y)
+        {
+            topLeft = cv::Point2f(p);
+        }
+
+        if (p.x >= topRight.x && p.y <= topRight.y)
+        {
+            topRight = cv::Point2f(p);
+        }
+
+        if (p.x <= bottomLeft.x && p.y > bottomLeft.y)
+        {
+            bottomLeft = cv::Point2f(p);
+        }
+
+        if (p.x >= bottomRight.x && p.y > bottomRight.y)
+        {
+            bottomRight = cv::Point2f(p); 
+        }
+    } 
+
+    std::cout << " Point TopLeft " << topLeft << std::endl; 
+    std::cout << " Point topRight " << topRight << std::endl; 
+    std::cout << " Point bottomLeft " << bottomLeft << std::endl; 
+    std::cout << "Point bottomRight " << bottomRight << std::endl; 
+
+    float xi = topLeft.x - topLeft.x*0.05f > 0 ? topLeft.x - topLeft.x*0.05f : topLeft.x; 
+    float yi = topLeft.y - topLeft.y*0.05f > 0 ? topLeft.y - topLeft.y*0.05f : topLeft.y;
+    float wi = (bottomRight.x*1.05f - xi) < image.cols ?  (bottomRight.x*1.05f  - xi) : bottomRight.x ; 
+    float hi = (bottomRight.y*1.05f - yi) < image.rows ?  (bottomRight.y*1.05f  - yi) : bottomRight.y ; 
+
+    cv::Rect roi = cv::Rect(xi, yi, wi, hi);
+    cv::Mat pattern_extracted = image(roi); 
+
+    cv::imshow("Image ROI", pattern_extracted); 
 
 
-    
+
+
+    // ========================================================
+    // get perspective Matrix 
+
+    //cv::Point2f[4] dst = { cv::Point2f(0.0f, 0.0f), cv::Point2f(0.0f, 0.0f)}
+    //cv::Mat perspectiveMatrix = cv::getPerspectiveTransform()
+
+
+
 
     // =========================================================
 
@@ -649,10 +674,15 @@ int main( int argc, char** argv )
         
     }
 
-    for (const cv::Point2f& p : validPointsbyHough)
+    for (const cv::Point2f& p : pointofClass)
     {
         cv::circle( hierarchicalClustering, p , 5,  cv::Scalar(255,255,255,255), 2, 8, 0 );
     }
+
+    cv::line(hierarchicalClustering, topLeft, topRight, cv::Scalar(255, 0, 0, 255), 3); 
+    cv::line(hierarchicalClustering, topRight, bottomRight, cv::Scalar(255, 0, 0, 255), 3); 
+    cv::line(hierarchicalClustering, bottomRight, bottomLeft, cv::Scalar(255, 0, 0, 255), 3); 
+    cv::line(hierarchicalClustering, bottomLeft, topLeft, cv::Scalar(255, 0, 0, 255), 3); 
 
 
 
@@ -688,26 +718,26 @@ int main( int argc, char** argv )
     // =====================================================
     // IMAGE DETECTION  
 
-    cv::Point2f topLeft; 
+    cv::Point2f topleft; 
     
     if ( std::abs(intersections[0].x - intersections[2].x) > (image.size[1]*0.10f))
     {
         std::cout << "Variations > 10% de la taille de l'image\n"; 
-        topLeft.x = std::min(intersections[0].x, intersections[2].x);
+        topleft.x = std::min(intersections[0].x, intersections[2].x);
     }
     else 
     {
-        topLeft.x = std::min(intersections[0].x , intersections[2].x);
+        topleft.x = std::min(intersections[0].x , intersections[2].x);
     }
 
     if ( std::abs(intersections[0].y - intersections[1].y) > (image.size[0]*0.10f))
     {
         std::cout << "Variations > 10% de la taille de l'image\n"; 
-        topLeft.y = std::min(intersections[0].y, intersections[1].y);
+        topleft.y = std::min(intersections[0].y, intersections[1].y);
     }
     else 
     {
-        topLeft.y = std::max(intersections[0].y ,intersections[1].y);
+        topleft.y = std::max(intersections[0].y ,intersections[1].y);
     }
 
     cv::Point2f botRight;
@@ -732,10 +762,10 @@ int main( int argc, char** argv )
     }
 
 
-    cv::Rect roiImage = cv::Rect((int)topLeft.x, (int)topLeft.y,
-                                std::ceil(botRight.x-topLeft.x),
-                                std::ceil(botRight.y-topLeft.y));
-    std::cout << topLeft.x << std::endl; 
+    cv::Rect roiImage = cv::Rect((int)topleft.x, (int)topleft.y,
+                                std::ceil(botRight.x-topleft.x),
+                                std::ceil(botRight.y-topleft.y));
+    std::cout << topleft.x << std::endl; 
     cv::Mat outDetectedImage = image(roiImage);
 
     // =====================================================
