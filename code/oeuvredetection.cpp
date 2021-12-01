@@ -415,7 +415,7 @@ std::vector<std::pair<float, float>> houghAnalysis(const std::vector<cv::Point2f
     }
 
     cv::Mat testMat = cv::Mat::zeros(Nrho, Ntheta, CV_8UC1); 
-    const unsigned int minVotes = 4; 
+    const unsigned int minVotes = 3; 
     std::vector<std::pair<float, float>> winnerTuple; 
     for (unsigned int k = 0; k < Ntheta; k++)
     {
@@ -482,6 +482,9 @@ int main( int argc, char** argv )
     image = cv::imread( argv[1], cv::IMREAD_GRAYSCALE );
     cv::Mat pattern = cv::imread(argv[2], cv::IMREAD_GRAYSCALE );
 
+    int pattern_width = pattern.size[1]; 
+    int pattern_height = pattern.size[0]; 
+
 
     if ( !image.data )
     {
@@ -538,138 +541,80 @@ int main( int argc, char** argv )
     float wi = (bottomRight.x*1.05f - xi) < image.cols ?  (bottomRight.x*1.05f  - xi) : bottomRight.x ; 
     float hi = (bottomRight.y*1.05f - yi) < image.rows ?  (bottomRight.y*1.05f  - yi) : bottomRight.y ; 
 
-    // Find the mean center 
-    cv::Point2f ancragePoint(0.0f, 0.0f); 
-
-    if (pointofClass.size() == 16)
-    {
-        // lucky we got all points
-        for (unsigned int k=0; k <  pointofClass.size(); k++)
-        {
-            ancragePoint.x += pointofClass[k].x; 
-            ancragePoint.y += pointofClass[k].y; 
-        }
-
-        ancragePoint.x /= (float)pointofClass.size(); 
-        ancragePoint.y /= (float)pointofClass.size(); 
-    }
-
-
-
-
     cv::Rect roi = cv::Rect(xi, yi, wi, hi);
-    cv::Mat image_roi = image(roi); 
-    cv::imshow("Image ROI", image_roi);  
+    cv::Mat pattern_extracted = image(roi); 
+    cv::imshow("Image ROI", pattern_extracted);  
 
-    // Match all features from pattern etendu to ROI 
-    // take one keypoint descriptor - ref = pattern 
-    std::vector< std::vector<std::pair < float , cv::Point2f> > > matches; 
-    matches.reserve(pointofClass.size()); 
-    std::vector< std::pair<float, int> > distPoints = {}; 
-    std::vector<bool> pointChoosen(pointofClass.size(), false);
-    
-    for (unsigned int k = 0; k < pointofClass.size(); k++)
-    {
-        distPoints.clear(); 
-        std::vector<std::pair< float, cv::Point2f>> pointMatch; 
-         
-
-        //distance calculations 
-
-        for (unsigned int i = 0; i < pointofClass.size(); i++)
-        {
-            if (pointChoosen[i])
-            {
-                continue; 
-            }
-
-            float scale_factorx = (float)(pattern.cols)/ (float)wi ;   
-            float scale_factory = (float)(pattern.rows)/ (float)hi ;   
-            cv::Point2f point_harris_scaled = (pointofClass[i] - cv::Point2f(xi, xi)); 
-            point_harris_scaled.x *= scale_factorx; 
-            point_harris_scaled.y *= scale_factory; 
-
-            float di = distance(harrisCornerspattern[k], point_harris_scaled); 
-             
-            distPoints.push_back(std::make_pair(di, i)); 
-        }
-
-        // Sort by distance 
-        std::sort(distPoints.begin(), distPoints.end());
-        pointMatch.push_back(std::make_pair(distPoints[0].first, pointofClass[distPoints[0].second]));
-        if (distPoints.size() > 1)
-        {
-            std::cout << "Distance between Pattern[" << k << "] & distance p1=" << distPoints[0].first << " & distance p2=" <<  distPoints[1].first << "\n" << std::endl; 
-            pointMatch.push_back(std::make_pair(distPoints[1].first, pointofClass[distPoints[1].second]));
-        }// take the first 2 
-         
-        
-        // invalidate first one to tak e
-        pointChoosen[distPoints[0].second] = true; 
-        matches.push_back(pointMatch);  
-        pointMatch.clear(); 
-    }
-
-
- 
-    //-- Filter matches using the Lowe's ratio test
-    const float ratio_thresh = 0.998f;
-    std::vector< cv::Point2f > good_matches;
-
-    for (int i = 0; i < matches.size(); i++)
-    {
-
-        if (matches[i].size() == 1)
-        {
-            good_matches.push_back(matches[i][0].second);
-            std::cout << "Find Match for point " << harrisCornerspattern[i] << " => " << matches[i][0].second <<" \n"; 
-            continue; 
-        }
-
-        if (matches[i].size() > 1)
-        {
-            std::cout << " Match 0=" << matches[i][0].first << " Match 1=" <<matches[i][1].first << std::endl;
-            if (matches[i][0].first < ratio_thresh * matches[i][1].first) {
-                good_matches.push_back(matches[i][0].second);
-                std::cout << "Find Match for point " << harrisCornerspattern[i] << " => " << matches[i][0].second <<" \n"; 
-                continue; 
-            }
-
-        }
-        
-        
-
-        good_matches.push_back(cv::Point2f(-1,-1));
-
-    }
-
-
-
-    // Draw matches
-    cv::Mat img_matches;
-    realConcatenateTwoMat(img_matches, pattern, image); 
-
-    cv::Rect roi2 = cv::Rect(pattern.cols, 0, image.cols, image.rows);
-    cv::Mat img_withmatchesROI = img_matches(roi2);
-
-    // --------------------------------------------------------
+    // =========================================================
     // HOUGH TRANFORMATION 
     // 0 à 2pi 
 
     int imgWidth = image.size[1]; 
     int imgHeight = image.size[0]; 
     float diag = std::sqrt(imgWidth*imgWidth + imgHeight*imgHeight); 
+    float drho = diag*0.000705f ; 
     
-    std::vector<std::pair<float, float>> houghlines = houghAnalysis(pointofClass, imgWidth, imgHeight, 2.f, diag*0.000715f ); 
+    std::vector<std::pair<float, float>> houghlines = houghAnalysis(pointofClass, imgWidth, imgHeight, 
+                                                                    2.0f, drho); 
     displayHoughLines(houghlines, image); 
 
+    // Lines Detection done => each line must define our pattern template 
+    // All points that belongs to a line are valid 
+    // Valid only these points 
 
+    std::vector<cv::Point2f> validPointsbyHough; 
+    std::vector<unsigned int> validIndexbyHough; 
+    /* theta, rho */
+    
+    for (unsigned int k = 0; k < pointofClass.size(); k++)
+    {
+        
+        for (const auto& line : houghlines)
+        {
+            float rho = line.second; 
+            float theta = line.first; 
 
-    // --------------------------------------------------------
+            float rhop = pointofClass[k].x*std::cos(theta * 3.14f /180.0f) + pointofClass[k].y*std::sin(theta * 3.14f /180.0f); 
+
+            if (std::abs(std::abs(rhop) - rho) < drho)
+            {
+                validIndexbyHough.push_back(k);
+                if (DEBUG_ON_DISPLAY){
+
+                    std::cout << "Point valid by Hough : " <<  pointofClass[k].x  << "," << pointofClass[k].y << std::endl; 
+                }
+                
+                break;
+            }
+            
+        }
+    }
+
+    // Remove invalid points
+    std::vector <unsigned int> removeIndex;  
+    for (unsigned int k= 0; k < pointofClass.size(); k++)
+    {
+        if (std::find(validIndexbyHough.begin(),validIndexbyHough.end(), k) == std::end(validIndexbyHough))
+        {
+            removeIndex.push_back(k); 
+        }
+    }
+
+    std::sort(removeIndex.begin(), removeIndex.end(), std::greater<unsigned int>()); 
+    for (const unsigned int& index : removeIndex)
+    {
+        pointofClass.erase(pointofClass.begin() + index); 
+    }
+
+    if (DEBUG_ON_DISPLAY){ 
+        std::cout << "Number of valid points by Hough = " << pointofClass.size() << std::endl; 
+    }
+                
+
 
     
 
-
+    // =========================================================
 
     // display 
     cv::Mat hierarchicalClustering = cv::Mat::zeros(image.size[0], image.size[1], CV_8UC3); 
@@ -696,15 +641,22 @@ int main( int argc, char** argv )
         
         cv::circle( hierarchicalClustering, harrisCornersimg.at(i) , 5,  color, 2, 8, 0 );
         cv::circle( image, harrisCornersimg.at(i), 5,  cv::Scalar(0, 0, 0, 255), 2, 8, 0 ); 
-        cv::circle(img_withmatchesROI, harrisCornersimg.at(i) , 5,  color, 2, 8, 0 ); 
+        //cv::circle(img_withmatchesROI, harrisCornersimg.at(i) , 5,  color, 2, 8, 0 ); 
         // interactive display clustering
         //std::cout << "Point "<< i << std::endl; 
         //cv::imshow( "Main", hierarchicalClustering );
-        //cv::waitKey(0);
-
-        
+        //cv::waitKey(0) 
         
     }
+
+    for (const cv::Point2f& p : validPointsbyHough)
+    {
+        cv::circle( hierarchicalClustering, p , 5,  cv::Scalar(255,255,255,255), 2, 8, 0 );
+    }
+
+
+
+
     // =====================================================
     // iterate through class 
     std::vector<cv::Point2f> intersections;
@@ -733,7 +685,9 @@ int main( int argc, char** argv )
         cv::waitKey(0);
     }
 
-    // mean per corner 
+    // =====================================================
+    // IMAGE DETECTION  
+
     cv::Point2f topLeft; 
     
     if ( std::abs(intersections[0].x - intersections[2].x) > (image.size[1]*0.10f))
@@ -784,44 +738,20 @@ int main( int argc, char** argv )
     std::cout << topLeft.x << std::endl; 
     cv::Mat outDetectedImage = image(roiImage);
 
-
-    // stripped white line 
-
     // =====================================================
-
-
-
-
-    roi2 = cv::Rect(0, 0, pattern.cols, pattern.rows);
-    cv::Mat pattern_withmatchesROI = img_matches(roi2);
 
     for( int i = 0; i < harrisCornerspattern.size() ; i++ )
     {
         cv::circle( pattern, harrisCornerspattern.at(i), 5,  
                     cv::Scalar(0, 0, 0, 255), 2, 8, 0 ); 
-        cv::circle( pattern_withmatchesROI,harrisCornerspattern.at(i), 5,  
-                    cv::Scalar(0, 0, 0, 255), 2, 8, 0 ); 
-        
     }
 
-    // draw matches 
-    for (unsigned int k = 0; k < good_matches.size(); k++ )
-    {   
-        // translated point 
-        cv::Point2f gm = good_matches[k] + cv::Point2f(pattern.rows, 0.0f);  
-        if (good_matches[k] == cv::Point2f(-1, -1))
-        {
-            std::cout << "No Match for point " << harrisCornerspattern[k] << "\n"; 
-            continue; 
-        }
-        cv::line(img_matches, harrisCornerspattern[k],  gm, cv::Scalar(120,120,120,255), 3);
-    }
+    
 
     cv::namedWindow( source_window );
     cv::imshow( source_window, image );
     cv::imshow( "Main", hierarchicalClustering );
     cv::imshow("Pattern", pattern); 
-    cv::imshow("Good Matches", img_matches );
     cv::imshow("Detected Image",outDetectedImage ); 
 
 
