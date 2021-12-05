@@ -501,6 +501,22 @@ int main( int argc, char** argv )
         return -1;
     }
 
+
+    // CANNY EDGE Detection 
+    cv::Mat edgeDetected, grad; 
+    edgeDetected.create(image.size(), image.type());
+    edgeDetected = cv::Scalar::all(0); 
+    grad.create(image.size(), image.type());
+    grad = cv::Scalar::all(0);
+    cv::blur(image,edgeDetected, cv::Size(3,3) ); 
+    cv::Sobel(edgeDetected, grad, CV_16S, 1, 0); 
+    //cv::Sobel(edgeDetected,edgeDetected, CV_64F, 1, 0, ksize=5); 
+    cv::namedWindow("Sobel", cv::WINDOW_NORMAL) ; 
+    cv::imshow("Sobel", grad); 
+    cv::waitKey(0); 
+
+
+
     // ===============================================================================================
 
 
