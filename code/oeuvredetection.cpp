@@ -214,16 +214,16 @@ void unconformedClustering(const std::vector<T>& vecTocluster, std::vector<int>&
 
 // remove duplicate points  
 template <typename T> 
-void filterPoints(std::vector<T>& features, float threshold = std::sqrt(2))
+void filterPoints(std::vector<T>& features, float threshold = (float)std::sqrt(2))
 {
     std::vector<int> index_todelete; 
     int Npoints = 0; 
-    int overall = features.size(); 
+    int overall = (int)features.size(); 
 
     float dist_mean = 0.0f; 
-    for (unsigned int k = 0; k < features.size(); k++ )
+    for (int k = 0; k < overall; k++ )
     {
-        for (unsigned int j = k; j < features.size(); j++ )
+        for (int j = k; j < overall; j++ )
         {   
             float dist = 0.0f;
             if (j==k) { continue; }
@@ -248,7 +248,7 @@ void filterPoints(std::vector<T>& features, float threshold = std::sqrt(2))
 
     // erase duplicate on features vector 
     auto it = features.begin(); 
-    for ( unsigned int k = 0; k < index_todelete.size(); k++)
+    for ( int k = 0; k < (int)index_todelete.size(); k++)
     {
         //std::cout << " Remove point " << index_todelete.at(k) << std::endl;
         Npoints++; 
@@ -260,7 +260,7 @@ void filterPoints(std::vector<T>& features, float threshold = std::sqrt(2))
 }
 
 template <typename T> 
-void harrisCornerDetection(const cv::Mat& img, std::vector<T>& harrisCorners, float threshHarris, float threshFilter=std::sqrt(2))
+void harrisCornerDetection(const cv::Mat& img, std::vector<T>& harrisCorners, float threshHarris, float threshFilter=(float)std::sqrt(2))
 {
     int blockSize = 2;
     int apertureSize = 3;
@@ -294,11 +294,11 @@ void harrisCornerDetection(const cv::Mat& img, std::vector<T>& harrisCorners, fl
 }
 
 template <typename T> 
-std::vector<T> getVecPoint(const std::vector<int>& classifiedVec, const std::vector<T>&  harrispoints, unsigned int classwanted)
+std::vector<T> getVecPoint(const std::vector<int>& classifiedVec, const std::vector<T>&  harrispoints, int classwanted)
 {
     // trying to find a good match for each clustered class 0 1 2 3
     std::vector<T> pointofClass;
-    for (unsigned int k=0; k < classifiedVec.size(); k++)
+    for (unsigned int k=0; k < (unsigned int)classifiedVec.size(); k++)
     {
         if (classifiedVec.at(k) == classwanted)
         {
@@ -323,7 +323,7 @@ cv::Point2f getIndexOfPoint(const std::vector<cv::Point2f>& classifiedPoint, int
     std::vector<unsigned int> historows(krows,  0.f); 
     std::vector<unsigned int> histocols(kcols,  0.f);
 
-    if (cornerType > 3) {
+    if (cornerType > 3 || cornerType <  0) {
         std::cout << "Invalid cornerType, return 0 0 "; 
 
         return cv::Point2f(0.0, 0.0); 
@@ -357,13 +357,13 @@ cv::Point2f getIndexOfPoint(const std::vector<cv::Point2f>& classifiedPoint, int
         if (cornerType == 0 || cornerType == 2)
         {
             if (historows[k] > numberMinPoints) {
-                index.x = k; 
+                index.x = (float)k; 
             }
         } 
         else if (cornerType == 1 || cornerType == 3)
         {
-            if (historows[k] > numberMinPoints && k < index.x) {
-                index.x = k; 
+            if (historows[k] > numberMinPoints && (float)k < index.x) {
+                index.x = (float)k; 
             }
         }
         
@@ -375,13 +375,13 @@ cv::Point2f getIndexOfPoint(const std::vector<cv::Point2f>& classifiedPoint, int
         if (cornerType == 0 || cornerType == 1)
         {
             if (histocols[k] > numberMinPoints) {
-                index.y = k; 
+                index.y = (float)k; 
             }
         }
         else if (cornerType == 2 || cornerType == 3)
         {
-            if (histocols[k] > numberMinPoints && k < index.y) {
-                index.y = k; 
+            if (histocols[k] > numberMinPoints && (float)k < index.y) {
+                index.y = (float)k; 
             }
         }
     }
@@ -412,7 +412,7 @@ std::vector<std::pair<float, float>> houghAnalysis(const std::vector<cv::Point2f
     // pour chaque point 
     for (const cv::Point2f& p : vecClassified)
     {
-        for (unsigned int k=0; k < Ntheta; k++)
+        for (int k=0; k < Ntheta; k++)
         {
             float theta = dtheta * (float)k * 3.14f / 180.0f; 
             float rho = p.x * std::cos(theta) + p.y * std::sin(theta); 
@@ -423,7 +423,7 @@ std::vector<std::pair<float, float>> houghAnalysis(const std::vector<cv::Point2f
     }
 
     cv::Mat testMat = cv::Mat::zeros(Nrho, Ntheta, CV_8UC1); 
-    const unsigned int minVotes = 3; 
+    const unsigned int minVotes = 4; 
     std::vector<std::pair<float, float>> winnerTuple; 
     for (unsigned int k = 0; k < Ntheta; k++)
     {
@@ -468,13 +468,15 @@ void displayHoughLines(const std::vector< std::pair<float, float> >& analysisres
 
         cv::line(imageOndisp ,p1, p2, cv::Scalar(0,0,255, 255)); 
 
-        cv::imshow("Line Houghs", imageOndisp); 
-        cv::waitKey(0); 
+         
+        
 
     }
+    cv::imshow("Line Houghs", imageOndisp);
+    cv::waitKey(0); 
     
 }
-
+// ======================================================================================
 
 // ======================================================================================
 
@@ -486,6 +488,12 @@ int main( int argc, char** argv )
     int max_thresh = 255;
     const char* source_window = "Source image";
 
+    if ( argc != 3 )
+    {
+        printf("usage: Detection.out <Photography> <patternToDetect.png> \n");
+        return -1;
+    }
+    
 
     image = cv::imread( argv[1], cv::IMREAD_GRAYSCALE );
     cv::Mat pattern = cv::imread(argv[2], cv::IMREAD_GRAYSCALE );
@@ -501,6 +509,21 @@ int main( int argc, char** argv )
     }
 
     // ===============================================================================================
+    // Canny to Prevent to much features detection 
+    // blurred image => contours 
+    /*cv::Mat blurred; 
+    image.copyTo(blurred);
+    cv::medianBlur(image, blurred, 9);
+
+    cv::Mat cannyEdge = cv::Mat::zeros(cv::Size(image.size[1], image.size[0]) , CV_8UC1); 
+    int cannyThreshFound = 250; 
+    cv::Canny(blurred, cannyEdge, cannyThreshFound, cannyThreshFound*3, 3);
+    //cv::medianBlur(blackAndWhiteImage, blackAndWhiteImage, 9); 
+    cv::namedWindow("bNw", cv::WINDOW_NORMAL); 
+    cv::imshow("bNw", cannyEdge); 
+    cv::waitKey(0); */
+
+
     // FEATURES DETECTION : Harris Corner 
     std::vector<cv::Point2f> harrisCornersimg; 
     harrisCornerDetection(image, harrisCornersimg, thresh, 4.0f); 
@@ -508,237 +531,232 @@ int main( int argc, char** argv )
     // SET CLASS "CLUSTERING"
     cv::Point2f centerImage = { image.cols/2.0f, image.rows/2.0f }; 
     std::vector<int> vecClustered; 
-    unconformedClustering(harrisCornersimg, vecClustered, centerImage, image.cols/6.0f ); 
+    unconformedClustering(harrisCornersimg, vecClustered, centerImage, image.cols/10.f ); //image.cols/6.0f
 
     // FEATURES DETECTION : Harris Corner Pattern 
     std::vector<cv::Point2f> harrisCornerspattern; 
-    harrisCornerDetection(pattern, harrisCornerspattern, thresh, 4.0f); 
+    harrisCornerDetection(pattern, harrisCornerspattern, thresh, 4.0f);
 
-
-    // pour chaque class calculer 
-    cv::Mat warpImage;
-    for (unsigned int classi = 0; classi < 4; classi++)
+    // ===============================================================================================
+    // trying to find a good match for each clustered class 0 1 2 3
+    std::vector<cv::Point2f> pointofClass; 
+    for (unsigned int k=0; k < vecClustered.size(); k++)
     {
-
-    
-    
-        // ===============================================================================================
-        // trying to find a good match for each clustered class 0 1 2 3
-        std::vector<cv::Point2f> pointofClass; 
-        for (unsigned int k=0; k < vecClustered.size(); k++)
+        if (vecClustered.at(k) == 0 )
         {
-            if (vecClustered.at(k) == classi)
-            {
-                pointofClass.push_back(harrisCornersimg.at(k)); 
-                
-            }
-        }  
-
-        // =========================================================
-        // HOUGH TRANFORMATION 
-        // 0 à 2pi 
-
-        int imgWidth = image.size[1]; 
-        int imgHeight = image.size[0]; 
-        float diag = std::sqrt(imgWidth*imgWidth + imgHeight*imgHeight); 
-        float drho = diag*0.00065f ; 
-        
-        std::vector<std::pair<float, float>> houghlines = houghAnalysis(pointofClass, imgWidth, imgHeight, 
-                                                                        2.0f, drho); 
-        displayHoughLines(houghlines, image); 
-
-        // Lines Detection done => each line must define our pattern template 
-        // All points that belongs to a line are valid 
-        // Valid only these points 
-
-        std::vector<unsigned int> validIndexbyHough; 
-        /* theta, rho */
-        
-        for (unsigned int k = 0; k < pointofClass.size(); k++)
-        {
+            pointofClass.push_back(harrisCornersimg.at(k)); 
             
-            for (const auto& line : houghlines)
+        }
+    }  
+
+    // =========================================================
+    // HOUGH TRANFORMATION 
+    // 0 à 2pi 
+
+    int imgWidth = image.size[1]; 
+    int imgHeight = image.size[0]; 
+    float diag = std::sqrt(imgWidth*imgWidth + imgHeight*imgHeight); 
+    float drho = diag*0.000685f ; 
+    
+    std::vector<std::pair<float, float>> houghlines = houghAnalysis(pointofClass, imgWidth, imgHeight, 
+                                                                    2.0f, drho); 
+    displayHoughLines(houghlines, image); 
+
+    // Lines Detection done => each line must define our pattern template 
+    // All points that belongs to a line are valid 
+    // Valid only these points 
+
+    std::vector<unsigned int> validIndexbyHough; 
+    /* theta, rho */
+    
+    for (unsigned int k = 0; k < pointofClass.size(); k++)
+    {
+        
+        for (const auto& line : houghlines)
+        {
+            float rho = line.second; 
+            float theta = line.first; 
+            float rhop = pointofClass[k].x*std::cos(theta * 3.14f /180.0f) + pointofClass[k].y*std::sin(theta * 3.14f /180.0f); 
+
+            if (std::abs(std::abs(rhop) - rho) < drho)
             {
-                float rho = line.second; 
-                float theta = line.first; 
-                float rhop = pointofClass[k].x*std::cos(theta * 3.14f /180.0f) + pointofClass[k].y*std::sin(theta * 3.14f /180.0f); 
-
-                if (std::abs(std::abs(rhop) - rho) < drho)
-                {
-                    validIndexbyHough.push_back(k);
-                    if (DEBUG_ON_DISPLAY){
-                        std::cout << "Point valid by Hough : " <<  pointofClass[k].x  << "," << pointofClass[k].y << std::endl; 
-                    }
-
-                    break;
+                validIndexbyHough.push_back(k);
+                if (DEBUG_ON_DISPLAY){
+                    std::cout << "Point valid by Hough : " <<  pointofClass[k].x  << "," << pointofClass[k].y << std::endl; 
                 }
-                
-            }
-        }
 
-
-        // Remove invalid points
-        std::vector <unsigned int> removeIndex;  
-        for (unsigned int k= 0; k < pointofClass.size(); k++)
-        {
-            if (std::find(validIndexbyHough.begin(),validIndexbyHough.end(), k) == std::end(validIndexbyHough))
-            {
-                removeIndex.push_back(k); 
-            }
-        }
-
-        std::sort(removeIndex.begin(), removeIndex.end(), std::greater<unsigned int>()); 
-        for (const unsigned int& index : removeIndex)
-        {
-            pointofClass.erase(pointofClass.begin() + index); 
-        }
-
-        if (DEBUG_ON_DISPLAY){ 
-            std::cout << "Number of valid points by Hough = " << pointofClass.size() << std::endl; 
-        }
-        // ==========================================================================================
-        // determine ROI 
-        cv::Point2f topLeft = cv::Point2f(FLT_MAX, FLT_MAX); 
-        cv::Point2f topRight = cv::Point2f(FLT_MIN, FLT_MAX); 
-        cv::Point2f bottomLeft = cv::Point2f(FLT_MAX, FLT_MIN);
-        cv::Point2f bottomRight = cv::Point2f(FLT_MIN, FLT_MIN);
-        // doesnt work for perspective deformation
-        for (const cv::Point2f& p : pointofClass )
-        {
-            if (p.x <= topLeft.x && p.y < topLeft.y)
-            {
-                topLeft = cv::Point2f(p);
-            }
-
-            if (p.x >= topRight.x && p.y <= topRight.y)
-            {
-                topRight = cv::Point2f(p);
-            }
-
-            if (p.x <= bottomLeft.x && p.y > bottomLeft.y)
-            {
-                bottomLeft = cv::Point2f(p);
-            }
-
-            if (p.x >= bottomRight.x && p.y > bottomRight.y)
-            {
-                bottomRight = cv::Point2f(p); 
-            }
-        } 
-
-        std::cout << " Point TopLeft " << topLeft << std::endl; 
-        std::cout << " Point topRight " << topRight << std::endl; 
-        std::cout << " Point bottomLeft " << bottomLeft << std::endl; 
-        std::cout << " Point bottomRight " << bottomRight << std::endl; 
-
-        float xi = topLeft.x - topLeft.x*0.05f > 0 ? topLeft.x - topLeft.x*0.05f : topLeft.x; 
-        float yi = topLeft.y - topLeft.y*0.05f > 0 ? topLeft.y - topLeft.y*0.05f : topLeft.y;
-        float wi = (bottomRight.x*1.05f - xi) < image.cols ?  (bottomRight.x*1.05f  - xi) : bottomRight.x ; 
-        float hi = (bottomRight.y*1.05f - yi) < image.rows ?  (bottomRight.y*1.05f  - yi) : bottomRight.y ; 
-
-        float patternDiag = distance(topLeft, bottomRight); 
-
-        cv::Rect roi = cv::Rect(xi, yi, wi, hi);
-        cv::Mat pattern_extracted = image(roi); 
-        cv::imshow("Image ROI", pattern_extracted); 
-
-
-        // =========================================================
-
-        // display 
-        cv::Mat hierarchicalClustering = cv::Mat::zeros(image.size[0], image.size[1], CV_8UC3); 
-        for( int i = 0; i < harrisCornersimg.size() ; i++ )
-        {       
-            cv::Scalar color = cv::Scalar(vecClustered.at(i)*20, 0,vecClustered.at(i)*20,255); 
-
-            if (vecClustered.at(i) == 0)
-            {
-                color = cv::Scalar(255,0,0,255); 
-            }
-            else if (vecClustered.at(i) == 1)
-            {
-                color = cv::Scalar(0,255,0,255); 
-            }
-            else if (vecClustered.at(i) == 2)
-            {
-                color = cv::Scalar(0,0,255,255);
-            }
-            else if (vecClustered.at(i) == 3)
-            {
-                color = cv::Scalar(36,180,240,255); // BGR order 
+                break;
             }
             
-            cv::circle( hierarchicalClustering, harrisCornersimg.at(i) , 5,  color, 2, 8, 0 );
-            cv::circle( image, harrisCornersimg.at(i), 5,  cv::Scalar(0, 0, 0, 255), 2, 8, 0 ); 
-            //cv::circle(img_withmatchesROI, harrisCornersimg.at(i) , 5,  color, 2, 8, 0 ); 
-            // interactive display clustering
-            //std::cout << "Point "<< i << std::endl; 
-            //cv::imshow( "Main", hierarchicalClustering );
-            //cv::waitKey(0) 
-            
         }
+    }
 
-        for (const cv::Point2f& p : pointofClass)
+
+    // Remove invalid points
+    /*std::vector <unsigned int> removeIndex;  
+    for (unsigned int k= 0; k < pointofClass.size(); k++)
+    {
+        if (std::find(validIndexbyHough.begin(),validIndexbyHough.end(), k) == std::end(validIndexbyHough))
         {
-            cv::circle( hierarchicalClustering, p , 5,  cv::Scalar(255,255,255,255), 2, 8, 0 );
+            removeIndex.push_back(k); 
         }
+    }
 
+    std::sort(removeIndex.begin(), removeIndex.end(), std::greater<unsigned int>()); 
+    for (const unsigned int& index : removeIndex)
+    {
+        pointofClass.erase(pointofClass.begin() + index); 
+    }*/
 
-        // =====================================================
-        // iterate through class 
-        std::vector<cv::Point2f> intersections;
-        intersections.reserve(4); 
-        for (unsigned int c = 0; c < 4; c++)
+    if (DEBUG_ON_DISPLAY){ 
+        std::cout << "Number of valid points by Hough = " << pointofClass.size() << std::endl; 
+    }
+    // ==========================================================================================
+    // determine ROI 
+    cv::Point2f topLeft = cv::Point2f(FLT_MAX, FLT_MAX); 
+    cv::Point2f topRight = cv::Point2f(FLT_MIN, FLT_MAX); 
+    cv::Point2f bottomLeft = cv::Point2f(FLT_MAX, FLT_MIN);
+    cv::Point2f bottomRight = cv::Point2f(FLT_MIN, FLT_MIN);
+    // doesnt work for perspective deformation
+    for (const cv::Point2f& p : pointofClass )
+    {
+        if (p.x <= topLeft.x && p.y < topLeft.y)
         {
-            std::vector<cv::Point2f> pointsclass = getVecPoint(vecClustered, harrisCornersimg, c);
-            // Histogram per line 
-            cv::Point2f cornerlineindex = getIndexOfPoint(pointsclass, image.size[1], image.size[0], c);
-            
-            // vertical line 
-            cv::line(hierarchicalClustering, 
-                    cv::Point2f(cornerlineindex.x, 0.0f),   
-                    cv::Point2f(cornerlineindex.x, hierarchicalClustering.size[0]), 
-                    cv::Scalar(60 + 40*c, 60 + 40*c,60 + 40*c,255));
-            // horizontal Line 
-            cv::line(hierarchicalClustering, 
-                    cv::Point2f(0.0f, cornerlineindex.y),   
-                    cv::Point2f(hierarchicalClustering.size[1], cornerlineindex.y), 
-                    cv::Scalar(60 + 40*c,60 + 40*c,60 + 40*c,255));
-
-            
-            intersections.emplace_back(cornerlineindex.x, cornerlineindex.y); 
-            
-            cv::imshow( "Main", hierarchicalClustering );
-            cv::waitKey(0);
+            topLeft = cv::Point2f(p);
         }
 
-        // ========================================================
-        // get perspective Matrix 
-        float alpha = patternDiag / std::sqrt(std::pow(pattern_width, 2.0f) + std::pow(pattern_height, 2.0f)); 
-        cv::Point2f dst[4] = { topLeft, topLeft + cv::Point2f(pattern_width*alpha, 0.f), 
-                            topLeft + cv::Point2f(0.f, pattern_height*alpha), 
-                            topLeft + cv::Point2f(pattern_height*alpha, pattern_width*alpha)};
-
-        // SRC according to intersections to 
-        if (classi == 1)
+        if (p.x >= topRight.x && p.y <= topRight.y)
         {
-            if (distance(bottomLeft, intersections[classi]) > 5.0f)
-            {
-                std::cout << "Distance problem between line intersection and corner of image"; 
-                bottomLeft = intersections[classi]; 
-            } 
+            topRight = cv::Point2f(p);
         }
-        cv::Point2f src[4] = {topLeft, topRight, bottomLeft, bottomRight}; 
-        cv::Mat perspectiveMatrix = cv::getPerspectiveTransform(src, dst); 
+
+        if (p.x <= bottomLeft.x && p.y > bottomLeft.y)
+        {
+            bottomLeft = cv::Point2f(p);
+        }
+
+        if (p.x >= bottomRight.x && p.y > bottomRight.y)
+        {
+            bottomRight = cv::Point2f(p); 
+        }
+    } 
+
+    std::cout << " Point TopLeft " << topLeft << std::endl; 
+    std::cout << " Point topRight " << topRight << std::endl; 
+    std::cout << " Point bottomLeft " << bottomLeft << std::endl; 
+    std::cout << " Point bottomRight " << bottomRight << std::endl; 
+
+    float xi = topLeft.x - topLeft.x*0.05f > 0 ? topLeft.x - topLeft.x*0.05f : topLeft.x; 
+    float yi = topLeft.y - topLeft.y*0.05f > 0 ? topLeft.y - topLeft.y*0.05f : topLeft.y;
+    float wi = (bottomRight.x*1.05f - xi) < image.cols ?  (bottomRight.x*1.05f  - xi) : bottomRight.x ; 
+    float hi = (bottomRight.y*1.05f - yi) < image.rows ?  (bottomRight.y*1.05f  - yi) : bottomRight.y ; 
+
+    float patternDiag = distance(topLeft, bottomRight); 
+
+    cv::Rect roi = cv::Rect(xi, yi, wi, hi);
+    cv::Mat pattern_extracted = image(roi); 
+    cv::namedWindow("Image ROI", cv::WINDOW_NORMAL); 
+    cv::imshow("Image ROI", pattern_extracted); 
+
+
+    // =========================================================
+
+    // display 
+    cv::Mat hierarchicalClustering = cv::Mat::zeros(image.size[0], image.size[1], CV_8UC3); 
+    for( int i = 0; i < harrisCornersimg.size() ; i++ )
+    {       
+        cv::Scalar color = cv::Scalar(vecClustered.at(i)*20, 0,vecClustered.at(i)*20,255); 
+
+        if (vecClustered.at(i) == 0)
+        {
+            color = cv::Scalar(255,0,0,255); 
+        }
+        else if (vecClustered.at(i) == 1)
+        {
+            color = cv::Scalar(0,255,0,255); 
+        }
+        else if (vecClustered.at(i) == 2)
+        {
+            color = cv::Scalar(0,0,255,255);
+        }
+        else if (vecClustered.at(i) == 3)
+        {
+            color = cv::Scalar(36,180,240,255); // BGR order 
+        }
+        
+        cv::circle( hierarchicalClustering, harrisCornersimg.at(i) , 5,  color, 2, 8, 0 );
+        cv::circle( image, harrisCornersimg.at(i), 5,  cv::Scalar(0, 0, 0, 255), 2, 8, 0 ); 
+        //cv::circle(img_withmatchesROI, harrisCornersimg.at(i) , 5,  color, 2, 8, 0 ); 
+        // interactive display clustering
+        //std::cout << "Point "<< i << std::endl; 
+        //cv::imshow( "Main", hierarchicalClustering );
+        //cv::waitKey(0) 
+        
+    }
+
+    for (const cv::Point2f& p : pointofClass)
+    {
+        cv::circle( hierarchicalClustering, p , 5,  cv::Scalar(255,255,255,255), 2, 8, 0 );
+    }
+
+
+    // =====================================================
+    // iterate through class 
+    std::vector<cv::Point2f> intersections;
+    intersections.reserve(4); 
+    for (unsigned int c = 0; c < 4; c++)
+    {
+        std::vector<cv::Point2f> pointsclass = getVecPoint(vecClustered, harrisCornersimg, c);
+        // Histogram per line 
+        cv::Point2f cornerlineindex = getIndexOfPoint(pointsclass, image.size[1], image.size[0], c);
+
+        std::cout << " Class c=" << c << " Find intersection at " << cornerlineindex << std::endl; 
+        
+        // vertical line 
+        cv::line(hierarchicalClustering, 
+                cv::Point2f(cornerlineindex.x, 0.0f),   
+                cv::Point2f(cornerlineindex.x, hierarchicalClustering.size[0]), 
+                cv::Scalar(60 + 40*c, 60 + 40*c,60 + 40*c,255));
+        // horizontal Line 
+        cv::line(hierarchicalClustering, 
+                cv::Point2f(0.0f, cornerlineindex.y),   
+                cv::Point2f(hierarchicalClustering.size[1], cornerlineindex.y), 
+                cv::Scalar(60 + 40*c,60 + 40*c,60 + 40*c,255));
 
         
-        cv::warpPerspective(image, warpImage, perspectiveMatrix, cv::Size(image.size[1], image.size[0])); 
-        cv::imshow("Warp Image ", warpImage); 
+        intersections.emplace_back(cornerlineindex.x, cornerlineindex.y); 
+        cv::namedWindow("Main", cv::WINDOW_NORMAL); 
+        cv::imshow( "Main", hierarchicalClustering );
+        cv::waitKey(0);
+    }
 
-        cv::line(hierarchicalClustering, topLeft, topRight, cv::Scalar(255, 0, 0, 255), 3); 
-        cv::line(hierarchicalClustering, topRight, bottomRight, cv::Scalar(255, 0, 0, 255), 3); 
-        cv::line(hierarchicalClustering, bottomRight, bottomLeft, cv::Scalar(255, 0, 0, 255), 3); 
-        cv::line(hierarchicalClustering, bottomLeft, topLeft, cv::Scalar(255, 0, 0, 255), 3); 
+    // ========================================================
+    // get perspective Matrix 
+    float alpha = patternDiag / std::sqrt(std::pow(pattern_width, 2.0f) + std::pow(pattern_height, 2.0f)); 
+    cv::Point2f dst[4] = { topLeft, topLeft + cv::Point2f(pattern_width*alpha, 0.f), 
+                        topLeft + cv::Point2f(0.f, pattern_height*alpha), 
+                        topLeft + cv::Point2f(pattern_height*alpha, pattern_width*alpha)};
+
+    // SRC according to intersections to 
+    /*if (classi == 1)
+    {
+        if (distance(bottomLeft, intersections[classi]) > 5.0f)
+        {
+            std::cout << "Distance problem between line intersection and corner of image"; 
+            bottomLeft = intersections[classi]; 
+        } 
+    }
+    cv::Point2f src[4] = {topLeft, topRight, bottomLeft, bottomRight}; 
+    cv::Mat perspectiveMatrix = cv::getPerspectiveTransform(src, dst); 
+
+    
+    cv::warpPerspective(image, warpImage, perspectiveMatrix, cv::Size(image.size[1], image.size[0])); 
+    cv::imshow("Warp Image ", warpImage); */
+
+    cv::line(hierarchicalClustering, topLeft, topRight, cv::Scalar(255, 0, 0, 255), 3); 
+    cv::line(hierarchicalClustering, topRight, bottomRight, cv::Scalar(255, 0, 0, 255), 3); 
+    cv::line(hierarchicalClustering, bottomRight, bottomLeft, cv::Scalar(255, 0, 0, 255), 3); 
+    cv::line(hierarchicalClustering, bottomLeft, topLeft, cv::Scalar(255, 0, 0, 255), 3); 
 
     // =====================================================
     // IMAGE DETECTION  
@@ -813,9 +831,12 @@ int main( int argc, char** argv )
 
     
 
-    cv::namedWindow( source_window );
+    cv::namedWindow( source_window , cv::WINDOW_NORMAL);
     cv::imshow( source_window, image );
+
+    cv::namedWindow( "Main" , cv::WINDOW_NORMAL);
     cv::imshow( "Main", hierarchicalClustering );
+    
     cv::imshow("Pattern", pattern); 
     //cv::imshow("Detected Image",outDetectedImage ); 
 
@@ -823,8 +844,6 @@ int main( int argc, char** argv )
     
     cv::waitKey(0);
 
-    }
-    
     return EXIT_SUCCESS;
 }
 

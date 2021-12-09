@@ -81,11 +81,11 @@ cv::Mat processBarHistogram(cv::Mat& image, cv::Scalar color = cv::Scalar( 255, 
 
     for( int i = 0; i < histSize; i++ )
     {
-        float y = hist_h - cvRound(histo.at<float>(i)) ; 
+        float y = (float)(hist_h - cvRound(histo.at<float>(i))); 
 
         cv::rectangle( histoImg, 
-                cv::Point2f(bin_w*i - float(bin_w)/2.0f, hist_h),
-                cv::Point2f(bin_w*i + float(bin_w)/2.0f, y),
+                cv::Point2f((float)bin_w*i - float(bin_w)/2.0f, (float)hist_h),
+                cv::Point2f((float)bin_w*i + float(bin_w)/2.0f, y),
                 color,
                 cv::FILLED, 8, 0  
                 );

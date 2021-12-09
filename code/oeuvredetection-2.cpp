@@ -476,24 +476,87 @@ void displayHoughLines(const std::vector< std::pair<float, float> >& analysisres
     
 }
 
+template < typename T > 
+void printPoint(const char* message, const T& point )
+{
+    std::cout << message << " "; 
+    std::cout << "[" << point.x << "," << point.y << "]" << std::endl; 
+}
+
+// helper function:
+// finds a cosine of angle between vectors
+// from pt0->pt1 and from pt0->pt2
+static double angle( cv::Point pt1, cv::Point pt2, cv::Point pt0 )
+{
+    double dx1 = pt1.x - pt0.x;
+    double dy1 = pt1.y - pt0.y;
+    double dx2 = pt2.x - pt0.x;
+    double dy2 = pt2.y - pt0.y;
+    return (dx1*dx2 + dy1*dy2)/sqrt((dx1*dx1 + dy1*dy1)*(dx2*dx2 + dy2*dy2) + 1e-10);
+}
+
+
+static double distance(const cv::Point p0, const cv::Point p1)
+{
+    return std::sqrt(std::pow(p1.x - p0.x, 2) +  std::pow(p1.y - p0.y, 2)); 
+}
+
+// ======================================================================================
+
+void show_wait_destroy(const char* winname, cv::Mat img);
+
+int lowThreshold = 50;
+const int max_lowThreshold = 300;
+const int ratio = 3;
+const int kernel_size = 3;
+const char* window_name = "Edge Map";
+
+
+double getEntropie(const cv::Mat& Img, unsigned int width, unsigned int height, unsigned int nbsymb)
+{
+    double h = 0.0; 
+    unsigned int size = width * height;
+
+    // histogramme 
+    unsigned int histo[256] = {0};
+    for (unsigned int k=0; k < width; k++)
+    {
+        for (unsigned int j=0; j < height; j++)
+        {
+            histo[Img.at<IMAGEMAT_TYPE>(j, k)] += 1;  
+        }
+    }
+
+    // entropie
+    for (unsigned int k=0; k <nbsymb; k++ )
+    {
+        float palpha = float(histo[k]) / float(size); 
+
+        if (palpha > 0.0) 
+            h += (palpha) * std::log2(palpha); 
+    }
+
+    return -h; 
+
+}
+
 
 // ======================================================================================
 
 
 int main( int argc, char** argv )
 {
-    cv::Mat image;
-    int thresh = 154;
-    int max_thresh = 255;
-    const char* source_window = "Source image";
+    
+    const char* source_window = "Canny Edge";
 
-
-    image = cv::imread( argv[1], cv::IMREAD_GRAYSCALE );
-    cv::Mat pattern = cv::imread(argv[2], cv::IMREAD_GRAYSCALE );
-
-    int pattern_width = pattern.size[1]; 
-    int pattern_height = pattern.size[0]; 
-
+    if ( argc != 3 )
+    {
+        printf("usage: detectSheet.out <PictureToAnalyse> <ExtractedData> \n");
+        return -1;
+    }
+    
+    cv::Mat image = cv::imread( argv[1], cv::IMREAD_GRAYSCALE );
+    const char* name  = argv[2]; 
 
     if ( !image.data )
     {
@@ -501,26 +564,45 @@ int main( int argc, char** argv )
         return -1;
     }
 
+    unsigned int dxy = 64; // pixels 
+    int nx = (int) (image.size[1] / (float)dxy); 
+    int ny = (int) (image.size[0] / (float)dxy); 
 
-    // CANNY EDGE Detection 
-    cv::Mat edgeDetected, grad; 
-    edgeDetected.create(image.size(), image.type());
-    edgeDetected = cv::Scalar::all(0); 
-    grad.create(image.size(), image.type());
-    grad = cv::Scalar::all(0);
-    cv::blur(image,edgeDetected, cv::Size(3,3) ); 
-    cv::Sobel(edgeDetected, grad, CV_16S, 1, 0); 
-    //cv::Sobel(edgeDetected,edgeDetected, CV_64F, 1, 0, ksize=5); 
-    cv::namedWindow("Sobel", cv::WINDOW_NORMAL) ; 
-    cv::imshow("Sobel", grad); 
+    cv::Mat entropimage = cv::Mat::zeros(dxy*ny,dxy*nx, CV_8UC1); 
+
+    for (unsigned int k = 0 ; k < nx ; k++)
+    {
+        for (unsigned int j = 0; j < ny ; j++)
+        {
+            cv::Rect patch = cv::Rect(k * dxy, j *dxy, dxy, dxy); 
+            cv::Mat roi = image(patch); 
+
+            double entropie =  getEntropie(roi, dxy, dxy, 256);
+            
+            cv::Mat entRoi = entropimage(patch); 
+            cv::Mat valueEntropy = cv::Mat::ones(dxy, dxy, CV_8UC1) * cvRound(31*entropie); 
+            valueEntropy.copyTo(entRoi); 
+
+        }
+    }
+    cv::namedWindow("Test Entropie ", cv::WINDOW_NORMAL); 
+    cv::imshow("Test Entropie ", entropimage); 
     cv::waitKey(0); 
 
+    cv::Mat thresholdEnt;
+    float minentropy = 6.0f;  
+    cv::threshold(entropimage, thresholdEnt, cvRound(31*minentropy), 255, cv::THRESH_BINARY);
+    show_wait_destroy("Threshold entropy", thresholdEnt) ; 
 
-
-    // ===============================================================================================
-
-
-
-
+    
     return EXIT_SUCCESS; 
+}
+
+
+void show_wait_destroy(const char* winname, cv::Mat img) {
+    cv::namedWindow(winname, cv::WINDOW_NORMAL);
+    cv::imshow(winname, img);
+    cv::moveWindow(winname, 500, 0);
+    cv::waitKey(0);
+    cv::destroyWindow(winname);
 }
