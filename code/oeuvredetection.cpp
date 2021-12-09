@@ -484,7 +484,7 @@ void displayHoughLines(const std::vector< std::pair<float, float> >& analysisres
 int main( int argc, char** argv )
 {
     cv::Mat image;
-    int thresh = 154;
+    int thresh = 185;
     int max_thresh = 255;
     const char* source_window = "Source image";
 
@@ -513,20 +513,22 @@ int main( int argc, char** argv )
     // blurred image => contours 
     /*cv::Mat blurred; 
     image.copyTo(blurred);
-    cv::medianBlur(image, blurred, 9);
+    cv::medianBlur(image, blurred, 9);*/
 
-    cv::Mat cannyEdge = cv::Mat::zeros(cv::Size(image.size[1], image.size[0]) , CV_8UC1); 
+    /*cv::Mat cannyEdge = cv::Mat::zeros(cv::Size(image.size[1], image.size[0]) , CV_8UC1); 
     int cannyThreshFound = 250; 
-    cv::Canny(blurred, cannyEdge, cannyThreshFound, cannyThreshFound*3, 3);
-    //cv::medianBlur(blackAndWhiteImage, blackAndWhiteImage, 9); 
+    cv::Canny(blurred, cannyEdge, cannyThreshFound, cannyThreshFound*3, 3);*/
+    //cv::medianBlur(blackAndWhiteImage, blackAndWhiteImage, 9); */
+    cv::Mat blackAndWhiteImage; 
+    cv::threshold(image, blackAndWhiteImage, 50, 255, cv::THRESH_BINARY); 
     cv::namedWindow("bNw", cv::WINDOW_NORMAL); 
-    cv::imshow("bNw", cannyEdge); 
-    cv::waitKey(0); */
+    cv::imshow("bNw", blackAndWhiteImage); 
+    cv::waitKey(0); 
 
 
     // FEATURES DETECTION : Harris Corner 
     std::vector<cv::Point2f> harrisCornersimg; 
-    harrisCornerDetection(image, harrisCornersimg, thresh, 4.0f); 
+    harrisCornerDetection(blackAndWhiteImage, harrisCornersimg, thresh, 4.0f); 
     
     // SET CLASS "CLUSTERING"
     cv::Point2f centerImage = { image.cols/2.0f, image.rows/2.0f }; 
@@ -560,7 +562,7 @@ int main( int argc, char** argv )
     
     std::vector<std::pair<float, float>> houghlines = houghAnalysis(pointofClass, imgWidth, imgHeight, 
                                                                     2.0f, drho); 
-    displayHoughLines(houghlines, image); 
+    displayHoughLines(houghlines, blackAndWhiteImage); 
 
     // Lines Detection done => each line must define our pattern template 
     // All points that belongs to a line are valid 

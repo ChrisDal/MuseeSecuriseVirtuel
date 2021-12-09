@@ -568,7 +568,7 @@ int main( int argc, char** argv )
     int nx = (int) (image.size[1] / (float)dxy); 
     int ny = (int) (image.size[0] / (float)dxy); 
 
-    cv::Mat entropimage = cv::Mat::zeros(dxy*ny,dxy*nx, CV_8UC1); 
+    cv::Mat entropimage = cv::Mat::zeros(image.size[0],image.size[1], CV_8UC1); 
 
     for (unsigned int k = 0 ; k < nx ; k++)
     {
@@ -585,14 +585,32 @@ int main( int argc, char** argv )
 
         }
     }
-    cv::namedWindow("Test Entropie ", cv::WINDOW_NORMAL); 
-    cv::imshow("Test Entropie ", entropimage); 
-    cv::waitKey(0); 
+    show_wait_destroy("Test Entropie ", entropimage); 
 
     cv::Mat thresholdEnt;
     float minentropy = 6.0f;  
     cv::threshold(entropimage, thresholdEnt, cvRound(31*minentropy), 255, cv::THRESH_BINARY);
     show_wait_destroy("Threshold entropy", thresholdEnt) ; 
+
+    // Find carre 
+    // ---------------
+    cv::Mat new_image; 
+    cv::bitwise_and(image, image, new_image, thresholdEnt); 
+    show_wait_destroy("Threshold entropy image", new_image);
+
+    cv::Point2f topLeft = cv::Point2f(FLT_MAX, FLT_MAX); 
+    cv::Point2f bottomRight = cv::Point2f(FLT_MIN, FLT_MIN); 
+
+    for (unsigned int kx = 0; kx <  thresholdEnt.size[1]; kx++)
+    {
+        for (unsigned int ky = 0; ky < thresholdEnt.size[0] ; ky++)
+        {
+            if (thresholdEnt.at<IMAGEMAT_TYPE>(kx, ky) == 255)
+            {
+                // 
+            }
+        }
+    }
 
     
     return EXIT_SUCCESS; 
