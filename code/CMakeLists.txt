@@ -7,8 +7,8 @@ find_package( OpenCV REQUIRED )
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 
 # compile
-#add_executable( ${PROJECT_NAME}-MethodeNaive.out blockPermutation.cpp )
-#target_link_libraries( ${PROJECT_NAME}-MethodeNaive.out ${OpenCV_LIBS} )
+add_executable( ${PROJECT_NAME}-MethodeNaive.out blockPermutation.cpp )
+target_link_libraries( ${PROJECT_NAME}-MethodeNaive.out ${OpenCV_LIBS} )
 
 #compile 
 add_executable( ${PROJECT_NAME}-Detection.out oeuvredetection-2.cpp )

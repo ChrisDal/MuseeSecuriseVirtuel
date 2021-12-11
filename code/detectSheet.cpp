@@ -131,7 +131,13 @@ static double distance(const cv::Point p0, const cv::Point p1)
 
 // ======================================================================================
 
-void show_wait_destroy(const char* winname, cv::Mat img);
+void show_wait_destroy(const char* winname, cv::Mat img) {
+    //cv::namedWindow(winname, cv::WINDOW_NORMAL);
+    cv::imshow(winname, img);
+    cv::moveWindow(winname, 500, 0);
+    cv::waitKey(0);
+    cv::destroyWindow(winname);
+}
 
 int lowThreshold = 50;
 const int max_lowThreshold = 300;
@@ -168,20 +174,25 @@ int main( int argc, char** argv )
         return -1;
     }
 
+
+    // Enhanced contrast 
+    float alpha = 1.5f; 
+    float beta = 0.0f; 
+    image.convertTo(image, -1, alpha, beta);
+    cv::imshow("Image Enhanced", image); 
+    cv::waitKey(0); 
+
     // blurred image => contours 
     image.copyTo(blurred);
     cv::medianBlur(image, blurred, 9);
 
     cannyEdge = cv::Mat::zeros(cv::Size(image.size[1], image.size[0]) , CV_8UC1); 
     // Find 250 and 250*3 
-    int cannyThreshFound = 250; 
+    int cannyThreshFound = 100; 
     cv::Canny(blurred, cannyEdge, cannyThreshFound, cannyThreshFound*3, 3);
 
     cv::namedWindow( window_name, cv::WINDOW_NORMAL );
-    cv::imshow(window_name, cannyEdge); 
-    //cv::createTrackbar( "Min Threshold:", window_name, &lowThreshold, max_lowThreshold, CannyThreshold );
-    //CannyThreshold(0, 0);
-
+    cv::imshow(window_name, cannyEdge);
     cv::waitKey(0); 
     std::string tr_name = std::string(name) + std::to_string(cannyThreshFound) + ".png"; 
     cv::imwrite(tr_name.c_str(), cannyEdge); 
@@ -240,6 +251,8 @@ int main( int argc, char** argv )
     std::string foundCarrename = std::string(name) + "_found.png"; 
     cv::imwrite(foundCarrename.c_str(), imageColor); 
     std::cout << "Image Exported : " << foundCarrename << std::endl;
+
+
     // ====================================
     // Warp image
     // -----------
@@ -295,11 +308,6 @@ int main( int argc, char** argv )
     printPoint("bottomLeft", bottomLeft); 
     printPoint("bottomRight", bottomRight); 
 
-    /*std::cout << topLeft << topLeft.x << "," << topLeft.y << std::endl; 
-    std::cout << "topRight " << topRight.x << "," << topRight.y << std::endl; 
-    std::cout << "bottomLeft " << bottomLeft.x << "," << bottomLeft.y << std::endl; 
-    std::cout << "bottomRight " << bottomRight.x << ","  <<bottomRight.y << std::endl; */
-
     cv::Point2f src[4] = {topLeft, topRight, bottomLeft, bottomRight}; 
     cv::Point2f dst[4] = {cv::Point2f(0.0f, 0.0f), 
                         cv::Point2f((float)pixA4_width, 0.0f), 
@@ -314,26 +322,13 @@ int main( int argc, char** argv )
     cv::imwrite(perspectiveimage.c_str(), warpImage); 
     show_wait_destroy("Warp Image ", warpImage); 
 
-
+    // histogram 
     cv::Mat histo = processBarHistogram(warpImage, cv::Scalar(0, 255, 0)); 
     show_wait_destroy("Histogram", histo); 
-
-
-
-
-
-
-
 
 
     return EXIT_SUCCESS; 
 }
 
 
-void show_wait_destroy(const char* winname, cv::Mat img) {
-    //cv::namedWindow(winname, cv::WINDOW_NORMAL);
-    cv::imshow(winname, img);
-    cv::moveWindow(winname, 500, 0);
-    cv::waitKey(0);
-    cv::destroyWindow(winname);
-}
+
