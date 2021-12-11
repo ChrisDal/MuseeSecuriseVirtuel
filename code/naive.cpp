@@ -19,9 +19,9 @@
 
 int main(int argc, char** argv )
 {
-    if ( argc != 2 )
+    if ( argc != 3 )
     {
-        printf("usage: DisplayImage.out <Image_Path>\n");
+        printf("usage: DisplayImage.out <Image_Path> <Encrypted Image>\n");
         return -1;
     }
 
@@ -103,6 +103,11 @@ int main(int argc, char** argv )
     // End 
     cv::waitKey(0);
     cv::destroyAllWindows(); 
+
+    cv::imwrite(argv[2], permutedImage); 
+
+
+
 
     return EXIT_SUCCESS;
 }

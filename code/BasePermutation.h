@@ -14,8 +14,8 @@ void initSeed(int keycph) { srand(keycph); }
 // Output : 0 or 1, uniform
 int getRandBinary()
 {
-    float n = (float)rand() / (double)RAND_MAX; 
-    if (n > 0.5)
+    float n = (float)rand() / (float)RAND_MAX; 
+    if (n > 0.5f)
     {
         return 1; 
     }
@@ -26,7 +26,7 @@ int getRandBinary()
 // Output : 0:255, uniform
 int getRandOctet()
 {
-    float n = (float)(rand() / (double)(RAND_MAX)) *(255.0f - 0.0f);  
+    float n = (float)(rand() / (float)(RAND_MAX)) *(255.0f - 0.0f);  
     return (int)n; 
 }
 
@@ -47,7 +47,7 @@ void setPosition(cv::Point& ppt, const T& ki, const int ncols)
 // generateur de nombre pseudo aleatoire 
 int GNPA(int maxN)
 {
-    return static_cast<int>(((float)rand() / (double)RAND_MAX) * maxN); 
+    return static_cast<int>(((float)rand() / (float)RAND_MAX) * maxN); 
 }
 
 
@@ -75,7 +75,7 @@ void permuteFY(std::vector<T>& vecToShuffle, unsigned int maxN)
 // Permute the sequence of indices
 void permuteSequence(std::vector<unsigned int>& sequence)
 {
-    permuteFY(sequence, sequence.size()); 
+    permuteFY(sequence, (unsigned int)sequence.size()); 
 }
 
 
