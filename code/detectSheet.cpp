@@ -18,8 +18,7 @@ Objectif : Detect the sheet of paper where is the oeuvre
 Return a png file where the oeuvre is corrected from distortion 
 */ 
 
-cv::Mat image, blurred;
-cv::Mat cannyEdge;
+
 
 // ======================================================================================
 
@@ -132,7 +131,7 @@ static double distance(const cv::Point p0, const cv::Point p1)
 // ======================================================================================
 
 void show_wait_destroy(const char* winname, cv::Mat img) {
-    //cv::namedWindow(winname, cv::WINDOW_NORMAL);
+    cv::namedWindow(winname, cv::WINDOW_NORMAL);
     cv::imshow(winname, img);
     cv::moveWindow(winname, 500, 0);
     cv::waitKey(0);
@@ -144,13 +143,6 @@ const int max_lowThreshold = 300;
 const int ratio = 3;
 const int kernel_size = 3;
 const char* window_name = "Edge Map";
-
-static void CannyThreshold(int, void*)
-{
-    cannyEdge = cv::Mat::zeros(cv::Size(image.size[1], image.size[0]) , CV_8UC1); 
-    cv::Canny(blurred, cannyEdge, lowThreshold, lowThreshold*ratio, kernel_size);
-    cv::imshow( window_name, cannyEdge );
-}
 
 // ======================================================================================
 
@@ -164,7 +156,9 @@ int main( int argc, char** argv )
         printf("usage: detectSheet.out <PictureToAnalyse> <ExtractedData> \n");
         return -1;
     }
-    
+    cv::Mat image, blurred;
+    cv::Mat cannyEdge;
+
     image = cv::imread( argv[1], cv::IMREAD_GRAYSCALE );
     const char* name  = argv[2]; 
 
@@ -174,26 +168,28 @@ int main( int argc, char** argv )
         return -1;
     }
 
-
-    // Enhanced contrast 
+    // ---------------------------------
+    // Preprocessing : Enhanced contrast 
+    // ---------------------------------
+    cv::Mat enhanced_image = image.clone(); 
     float alpha = 1.5f; 
     float beta = 0.0f; 
-    image.convertTo(image, -1, alpha, beta);
-    cv::imshow("Image Enhanced", image); 
+    
+    enhanced_image.convertTo(enhanced_image, -1, alpha, beta);
+    cv::imshow("Image Enhanced", enhanced_image); 
     cv::waitKey(0); 
 
     // blurred image => contours 
-    image.copyTo(blurred);
+    enhanced_image.copyTo(blurred);
     cv::medianBlur(image, blurred, 9);
 
     cannyEdge = cv::Mat::zeros(cv::Size(image.size[1], image.size[0]) , CV_8UC1); 
     // Find 250 and 250*3 
     int cannyThreshFound = 100; 
     cv::Canny(blurred, cannyEdge, cannyThreshFound, cannyThreshFound*3, 3);
+    show_wait_destroy( window_name, cannyEdge);
 
-    cv::namedWindow( window_name, cv::WINDOW_NORMAL );
-    cv::imshow(window_name, cannyEdge);
-    cv::waitKey(0); 
+    // Exported
     std::string tr_name = std::string(name) + std::to_string(cannyThreshFound) + ".png"; 
     cv::imwrite(tr_name.c_str(), cannyEdge); 
     std::cout << "Image Exported : " << tr_name << std::endl; 
@@ -201,15 +197,19 @@ int main( int argc, char** argv )
     // ====================================
     // Find contours 
     // -------------
+    double minCypherImageSize = 0.25 * double(image.size[0] * image.size[1]); 
     std::vector< std::vector <cv::Point> > contours; 
-    cv::findContours(cannyEdge, contours, cv::RETR_LIST, cv::CHAIN_APPROX_SIMPLE);
+    std::vector<cv::Vec4i> hierarchy; 
+    // dilate canny output to remove potential holes between edge segments
+    cv::dilate(cannyEdge, cannyEdge, cv::UMat(), cv::Point(-1,-1));
+    cv::findContours(cannyEdge, contours, hierarchy, cv::RETR_LIST, cv::CHAIN_APPROX_SIMPLE);
 
     std::vector<cv::Point> approximations; 
     std::vector<std::vector<cv::Point>> rectangles;
     for( size_t i = 0; i < contours.size(); i++ )
     {
-        cv::approxPolyDP(contours[i], approximations, cv::arcLength(contours[i], true)*0.02, true);
-        if( approximations.size() == 4 && std::fabs(cv::contourArea(approximations)) > 1000 &&
+        cv::approxPolyDP(contours[i], approximations, cv::arcLength(contours[i], true)*0.08, true);
+        if( approximations.size() == 4 && std::fabs(cv::contourArea(approximations)) > minCypherImageSize &&
             cv::isContourConvex(approximations) )
         {
             double maxCosine = 0;
@@ -225,27 +225,38 @@ int main( int argc, char** argv )
             if( maxCosine < 0.3 ){
                 rectangles.push_back(approximations);
             }
-        }
 
+        }
     }
 
     // ====================================
     // Find the biggest surface  
+    cv::Mat imageColor = cv::imread(argv[1]);
     std::vector<cv::Point> ourSheet;
     ourSheet.reserve(4);  
     double maxSurface = FLT_MIN; 
+
+    for (int idx=0; idx >=0; idx=hierarchy[idx][0])
+    {
+        cv::Scalar color( rand()&255, rand()&255, rand()&255, 80 );
+        cv::drawContours( imageColor, contours, idx, color, cv::FILLED, 8, hierarchy );
+    }
     
     for (std::vector<cv::Point>& rect : rectangles)
     {
+        std::cout << "Process Rectangle ... " << std::endl; 
+        cv::polylines(imageColor, ourSheet, true, cv::Scalar(0, 255, 0, 255), 3, cv::LINE_AA);
+        
+        
         if (std::fabs(cv::contourArea(rect)) > maxSurface){
             ourSheet = rect; 
             maxSurface = std::fabs(cv::contourArea(rect)); 
         }
+ 
     }
 
-    cv::Mat imageColor =  cv::imread( argv[1]);
-    cv::polylines(imageColor, ourSheet, true, cv::Scalar(0, 255, 0), 3, cv::LINE_AA);
-
+    std::cout << "End Processing Rectangle ... " << std::endl; 
+    cv::polylines(imageColor, ourSheet, true, cv::Scalar(0, 0, 255, 255), 3, cv::LINE_AA);
     show_wait_destroy("Edge Detection carre", imageColor); 
     // export image
     std::string foundCarrename = std::string(name) + "_found.png"; 
