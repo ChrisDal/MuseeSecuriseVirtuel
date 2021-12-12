@@ -147,12 +147,22 @@ int main( int argc, char** argv )
         printf("No image data \n");
         return -1;
     }
+    // Enhanced image 
+    float alpha = 1.f; 
+    float beta = 0.0f; 
+    cv::Mat enhancedImage = image.clone(); 
+    enhancedImage.convertTo(enhancedImage, -1, alpha, beta);
+
+
 
     // Detected edge 
     // ----------------
     cv::Mat cannyEdge;  
-    int threshold_canny = 35; 
-    detectEdge(image, cannyEdge, threshold_canny); 
+    int threshold_canny = 100; 
+    detectEdge(enhancedImage, cannyEdge, threshold_canny); 
+
+    show_wait_destroy("Canny Edge on enhanced image", cannyEdge); 
+    exportImage(name, "_cannyEdge_100_perspectivecorrection.png", cannyEdge); 
 
 
     // Histograms

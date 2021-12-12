@@ -14,6 +14,7 @@ target_link_libraries( ${PROJECT_NAME}-MethodeNaive.out ${OpenCV_LIBS} )
 add_executable( ${PROJECT_NAME}-Detection.out oeuvredetection-2.cpp )
 target_link_libraries( ${PROJECT_NAME}-Detection.out ${OpenCV_LIBS} )
 
+
 #compile 
 add_executable( ${PROJECT_NAME}-ExportImage.out createOeuvre.cpp )
 target_link_libraries( ${PROJECT_NAME}-ExportImage.out ${OpenCV_LIBS} )
