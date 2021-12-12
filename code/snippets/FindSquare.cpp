@@ -21,8 +21,7 @@ static void help(const char* programName)
     "./" << programName << " [file_name (optional)]\n"
     "Using OpenCV version " << CV_VERSION << "\n" << endl;
 }
-int thresh = 50, N = 11;
-const char* wndname = "Square Detection Demo";
+
 // helper function:
 // finds a cosine of angle between vectors
 // from pt0->pt1 and from pt0->pt2
@@ -35,12 +34,17 @@ static double angle( Point pt1, Point pt2, Point pt0 )
     return (dx1*dx2 + dy1*dy2)/sqrt((dx1*dx1 + dy1*dy1)*(dx2*dx2 + dy2*dy2) + 1e-10);
 }
 // returns sequence of squares detected on the image.
-static void findSquares( const Mat& image, vector<vector<Point> >& squares )
+static void findSquares( const cv::Mat& image, std::vector<std::vector<cv::Point> >& squares )
 {
+    
+    int thresh = 50;  
+    int N = 11; // levels 
+    
+    
     squares.clear();
     cv::Mat pyr, timg, gray0(image.size(), CV_8U), gray;
     // down-scale and upscale the image to filter out the noise
-    cv::pyrDown(image, pyr, Size(image.cols/2, image.rows/2));
+    cv::pyrDown(image, pyr, cv::Size(image.cols/2, image.rows/2));
     cv::pyrUp(pyr, timg, image.size());
     std::vector<vector<Point> > contours;
 
@@ -48,7 +52,7 @@ static void findSquares( const Mat& image, vector<vector<Point> >& squares )
     for( int c = 0; c < 3; c++ )
     {
         int ch[] = {c, 0};
-        mixChannels(&timg, 1, &gray0, 1, ch, 1);
+        cv::mixChannels(&timg, 1, &gray0, 1, ch, 1);
     
         // try several threshold levels
         for( int l = 0; l < N; l++ )
@@ -81,7 +85,7 @@ static void findSquares( const Mat& image, vector<vector<Point> >& squares )
             {
                 // approximate contour with accuracy proportional
                 // to the contour perimeter
-                cv::approxPolyDP(contours[i], approx, arcLength(contours[i], true)*0.02, true);
+                cv::approxPolyDP(contours[i], approx, cv::arcLength(contours[i], true)*0.02, true);
                 // square contours should have 4 vertices after approximation
                 // relatively large area (to filter out noisy contours)
                 // and be convex.
@@ -96,12 +100,11 @@ static void findSquares( const Mat& image, vector<vector<Point> >& squares )
                     for( int j = 2; j < 5; j++ )
                     {
                         // find the maximum cosine of the angle between joint edges
-                        double cosine = fabs(angle(approx[j%4], approx[j-2], approx[j-1]));
+                        double cosine = std::fabs(angle(approx[j%4], approx[j-2], approx[j-1]));
                         maxCosine = MAX(maxCosine, cosine);
                     }
-                    // if cosines of all angles are small
-                    // (all angles are ~90 degree) then write quandrange
-                    // vertices to resultant sequence
+
+                    // cosines of all angles are small
                     if( maxCosine < 0.07 )
                         squares.push_back(approx);
                 }
@@ -111,17 +114,69 @@ static void findSquares( const Mat& image, vector<vector<Point> >& squares )
 
 }
 
-
-static double intersectionOverUnion(const std::vector<cv::Point>& s1, const std::vector<cv::Point>& s2)
+// Filter squares by median area : 
+// if abs(area - median area) > 10 % => remove
+void filterSquares(std::vector<std::vector<cv::Point>>& squares, std::vector<double>& areas)
 {
 
+    // Process Areas 
+    areas.clear(); 
+    areas.reserve(squares.size()); 
+
+    for (int k = 0; k < squares.size(); k++)
+    {
+        areas.push_back(cv::contourArea(squares[k])); 
+    }
+
+    // mediane 
+    int idmed = areas.size() % 2 == 0 ? areas.size() / 2.0f : int((float)areas.size() / 2.0f) + 1; 
+    double medianArea = areas.at(idmed); 
+    
+    std::cout << "Median Area = " << medianArea << " pix²." << std::endl; 
+
+    // Determine outliers
+    std::vector<int> indexRemove; 
+    for (int k = 0; k < squares.size(); k++)
+    {
+        if (std::fabs(areas[k] - medianArea) > 0.10 * medianArea)
+        {
+            indexRemove.insert(indexRemove.begin(), k); 
+        }
+    }
+
+    // Remove outliers 
+    for (const int& c : indexRemove)
+    {
+        squares.erase(squares.begin() + c); 
+        areas.erase(areas.begin() + c); 
+    }
+
 }
+
+// Get the square side pixel = sqrt(meanArea) 
+double getSquareSide(const std::vector<double>& areas)
+{
+    double sumarea = 0.0; 
+    for (const double& area : areas) {
+        sumarea += area; 
+    }
+    double meanArea = sumarea / (double)areas.size(); 
+
+    std::cout << " Square Size Side : " << std::sqrt(meanArea) << "pixels." <<  std::endl; 
+
+    return std::sqrt(meanArea); 
+
+}
+
+
 
 int main(int argc, char** argv)
 {
     const char* names[] = { "pic1.png", "pic2.png", "pic3.png",
         "pic4.png", "pic5.png", "pic6.png", 0 };
     help(argv[0]);
+
+    const char* wndname = "Square Detection Demo";
 
     if( argc > 1)
     {
@@ -142,49 +197,21 @@ int main(int argc, char** argv)
         }
 
         std::vector<std::vector<cv::Point> > squares;
-        findSquares(image, squares);
-
-        // sort 
         std::vector<double> areas; 
-        for (int k = 0; k < squares.size(); k++)
-        {
-            areas.push_back(cv::contourArea(squares[k])); 
-        }
 
-        // mediane 
-        int idmed = areas.size() % 2 == 0 ? areas.size() / 2.0f : int((float)areas.size() / 2.0f) + 1; 
-        double medianArea = areas.at(idmed); 
+        findSquares(image, squares);
+        filterSquares(squares, areas); 
         
-        std::cout << "Median Area = " << medianArea << " pix²." << std::endl; 
+        float squareSize = (float)getSquareSide(areas); 
 
-        std::vector<int> indexRemove; 
-        for (int k = 0; k < squares.size(); k++)
-        {
-            if (std::fabs(areas[k] - medianArea) > 0.1 * medianArea)
-            {
-                indexRemove.insert(indexRemove.begin(), k); 
-            }
-        }
-        for (const int& c : indexRemove)
-        {
-            squares.erase(squares.begin() + c); 
-            areas.erase(areas.begin() + c); 
-        }
-
-        // mean area 
-        double sumarea = 0.0; 
-        for (const double& area : areas)
-        {
-            sumarea+=area; 
-        }
-        double meanArea = sumarea / (double)areas.size(); 
-        float squareSize = (float)std::sqrt(meanArea); 
-        std::cout << squareSize << std::endl; 
-        cv::Rect2f OneSquare = cv::Rect2f(squares[0][0].x , squares[0][0].y, squareSize, squareSize); 
-        cv::rectangle(image, OneSquare, cv::Scalar(255, 0, 0, 255), -1); 
-
-
+        // Draw Filter Squares
         cv::polylines(image, squares, true, Scalar(0, 255, 0), 1, LINE_AA);
+        
+        // Draw one square of square side to vizually verify 
+        cv::Rect2f OneSquare = cv::Rect2f((float)squares[0][0].x , (float)squares[0][0].y, squareSize, squareSize); 
+        cv::rectangle(image, OneSquare, cv::Scalar(255, 0, 0, 125), -1); 
+
+        // image
         cv::imwrite("test_windows.png", image); 
         cv::namedWindow(wndname, cv::WINDOW_NORMAL); 
         cv::imshow(wndname, image);

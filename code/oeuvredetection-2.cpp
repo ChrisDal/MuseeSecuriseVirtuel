@@ -126,6 +126,144 @@ void processAxisHistograms(std::vector<int>& histox, std::vector<int>& histoy, c
 
 // ======================================================================================
 
+// returns sequence of squares detected on the image.
+static void findSquares( const cv::Mat& image, std::vector<std::vector<cv::Point> >& squares )
+{
+    
+    int thresh = 50;  
+    int N = 11; // levels 
+    
+    
+    squares.clear();
+    cv::Mat pyr, timg, gray0(image.size(), CV_8U), gray;
+    // down-scale and upscale the image to filter out the noise
+    cv::pyrDown(image, pyr, cv::Size(image.cols/2, image.rows/2));
+    cv::pyrUp(pyr, timg, image.size());
+    std::vector<std::vector<cv::Point> > contours;
+
+    // find squares in every color plane of the image
+    for( int c = 0; c < 3; c++ )
+    {
+        int ch[] = {c, 0};
+        cv::mixChannels(&timg, 1, &gray0, 1, ch, 1);
+    
+        // try several threshold levels
+        for( int l = 0; l < N; l++ )
+        {
+            // hack: use Canny instead of zero threshold level.
+            // Canny helps to catch squares with gradient shading
+            if( l == 0 )
+            {
+                // apply Canny. Take the upper threshold from slider
+                // and set the lower to 0 (which forces edges merging)
+                cv::Canny(gray0, gray, 0, thresh, 5);
+                // dilate canny output to remove potential
+                // holes between edge segments
+                cv::dilate(gray, gray, cv::Mat(), cv::Point(-1,-1));
+            }
+            else
+            {
+                // apply threshold if l!=0:
+                //     tgray(x,y) = gray(x,y) < (l+1)*255/N ? 255 : 0
+                gray = gray0 >= (l+1)*255/N;
+            }
+        
+            // find contours and store them all as a list
+            cv::findContours(gray, contours, cv::RETR_LIST, cv::CHAIN_APPROX_SIMPLE);
+            
+            std::vector<cv::Point> approx;
+            
+            // test each contour
+            for( size_t i = 0; i < contours.size(); i++ )
+            {
+                // approximate contour with accuracy proportional
+                // to the contour perimeter
+                cv::approxPolyDP(contours[i], approx, cv::arcLength(contours[i], true)*0.02, true);
+                // square contours should have 4 vertices after approximation
+                // relatively large area (to filter out noisy contours)
+                // and be convex.
+                // Note: absolute value of an area is used because
+                // area may be positive or negative - in accordance with the
+                // contour orientation
+                if( approx.size() == 4 &&
+                    std::fabs(cv::contourArea(approx)) > 1000 &&
+                    cv::isContourConvex(approx) )
+                {
+                    double maxCosine = 0;
+                    for( int j = 2; j < 5; j++ )
+                    {
+                        // find the maximum cosine of the angle between joint edges
+                        double cosine = std::fabs(angle(approx[j%4], approx[j-2], approx[j-1]));
+                        maxCosine = MAX(maxCosine, cosine);
+                    }
+
+                    // cosines of all angles are small
+                    if( maxCosine < 0.07 )
+                        squares.push_back(approx);
+                }
+            }
+        }
+    }
+
+}
+
+// Filter squares by median area : 
+// if abs(area - median area) > 10 % => remove
+void filterSquares(std::vector<std::vector<cv::Point>>& squares, std::vector<double>& areas)
+{
+
+    // Process Areas 
+    areas.clear(); 
+    areas.reserve(squares.size()); 
+
+    for (int k = 0; k < squares.size(); k++)
+    {
+        areas.push_back(cv::contourArea(squares[k])); 
+    }
+
+    // mediane 
+    int idmed = areas.size() % 2 == 0 ? (int) ((float)areas.size() / 2.0f) : int((float)areas.size() / 2.0f) + 1; 
+    double medianArea = areas.at(idmed); 
+    
+    std::cout << "Median Area = " << medianArea << " pix²." << std::endl; 
+
+    // Determine outliers
+    std::vector<int> indexRemove; 
+    for (int k = 0; k < squares.size(); k++)
+    {
+        if (std::fabs(areas[k] - medianArea) > 0.10 * medianArea)
+        {
+            indexRemove.insert(indexRemove.begin(), k); 
+        }
+    }
+
+    // Remove outliers 
+    for (const int& c : indexRemove)
+    {
+        squares.erase(squares.begin() + c); 
+        areas.erase(areas.begin() + c); 
+    }
+
+}
+
+// Get the square side pixel = sqrt(meanArea) 
+double getSquareSide(const std::vector<double>& areas)
+{
+    double sumarea = 0.0; 
+    for (const double& area : areas) {
+        sumarea += area; 
+    }
+    double meanArea = sumarea / (double)areas.size(); 
+
+    std::cout << " Square Size Side : " << std::sqrt(meanArea) << "pixels." <<  std::endl; 
+
+    return std::sqrt(meanArea); 
+
+}
+
+
+
+// ======================================================================================
 
 int main( int argc, char** argv )
 {
@@ -137,8 +275,10 @@ int main( int argc, char** argv )
         printf("usage: detectSheet.out <PictureToAnalyse> <ExtractedData> \n");
         return -1;
     }
-    cv::Mat blurred, image; 
+    cv::Mat blurred, image, imgcolor; 
     image = cv::imread( argv[1], cv::IMREAD_GRAYSCALE );
+    imgcolor = cv::imread(argv[1], cv::IMREAD_COLOR); 
+
     const char* name  = argv[2]; 
     
 
@@ -147,97 +287,51 @@ int main( int argc, char** argv )
         printf("No image data \n");
         return -1;
     }
-    // Enhanced image 
-    float alpha = 1.f; 
-    float beta = 0.0f; 
-    cv::Mat enhancedImage = image.clone(); 
-    enhancedImage.convertTo(enhancedImage, -1, alpha, beta);
 
 
+    // Find Square Pattern Size 
+    // -------------------------
+    std::vector<std::vector<cv::Point> > squares;
+    std::vector<double> areas; 
 
-    // Detected edge 
-    // ----------------
-    cv::Mat cannyEdge;  
-    int threshold_canny = 100; 
-    detectEdge(enhancedImage, cannyEdge, threshold_canny); 
-
-    show_wait_destroy("Canny Edge on enhanced image", cannyEdge); 
-    exportImage(name, "_cannyEdge_100_perspectivecorrection.png", cannyEdge); 
-
-
-    // Histograms
-    // -------------
-    std::vector<int> histocannyx; 
-    std::vector<int> histocannyy; 
-    processAxisHistograms(histocannyx, histocannyy, cannyEdge, 200); 
-
-    int thresholdN = 150; 
-    cv::Point2f xHist = cv::Point2f(FLT_MAX, FLT_MIN); 
-    cv::Point2f yHist = cv::Point2f(FLT_MAX, FLT_MIN);
-
-    cv::Mat realHisto = cv::Mat::zeros(cannyEdge.size[0], cannyEdge.size[1], CV_8UC1); 
-    for (int k = 0; k < cannyEdge.size[1] ; k++)
-    {
-        if (k < 20 || k > cannyEdge.size[1] - 20)
-        {
-            continue; 
-        }
-
-        if (histocannyx[k] > thresholdN) {
-            
-            if (k < xHist.x) {
-                xHist.x =(float) k; 
-            }
-
-            if (k > xHist.y) {
-                xHist.y = (float)k; 
-            }
-        }
-
-        for (int j = 0; j < histocannyx[k] ; j++)
-        {
-            realHisto.at<uchar>(j,k) = 255; 
-        }
-    }
-
-    for (int k = 0; k < cannyEdge.size[0] ; k++)
-    {
-        if (k < 20 || k > cannyEdge.size[0] - 20)
-        {
-            continue; 
-        }
-
-        if (histocannyy[k] > thresholdN) {
-            
-            if (k < yHist.x) {
-                yHist.x = (float)k; 
-            }
-
-            if (k > yHist.y) {
-                yHist.y = (float)k; 
-            }
-        }
-
-
-        for (int j = 0; j < histocannyy[k] ; j++)
-        {
-            realHisto.at<uchar>(k,j) = 255; 
-        }
-    }
-
-    printPoint("xhist", xHist); 
-    printPoint("yhist", yHist); 
-    cv::Mat rgbrealHisto; 
-    cv::cvtColor(realHisto, rgbrealHisto, cv::COLOR_GRAY2BGR); 
-    cv::line(rgbrealHisto, cv::Point2f(xHist.x, 150.f), cv::Point2f(xHist.y, 150.f), cv::Scalar(255,0,0,255), 15); 
-    cv::line(rgbrealHisto, cv::Point2f(150.f, yHist.x), cv::Point2f(150.f, yHist.y), cv::Scalar(0,0,255,255), 15); 
-    show_wait_destroy("Histogram of Canny Edge", rgbrealHisto); 
-
-    std::string histoname = name + std::string("_histograms.png"); 
-    cv::imwrite(histoname, rgbrealHisto); 
-
+    findSquares(imgcolor, squares);
+    filterSquares(squares, areas); 
     
+    float squareSize = (float)getSquareSide(areas); 
 
+    // Draw Filter Squares
+    cv::polylines(imgcolor, squares, true, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+    
+    // Draw one square of square side to vizually verify 
+    cv::Rect2f OneSquare = cv::Rect2f((float)squares[0][0].x , (float)squares[0][0].y, squareSize, squareSize); 
+    cv::rectangle(imgcolor, OneSquare, cv::Scalar(255, 0, 0, 125), -1); 
+
+    // Process Mean of all points to find image "center" at least a point in image 
+    cv::Point meanPoint = {0, 0}; 
+    int npoints = 0; 
+    for (const std::vector<cv::Point>& s : squares)
+    {
+        for (const cv::Point& p : s)
+        {
+            meanPoint += p; 
+            npoints++; 
+        }
+    } 
+    meanPoint.x = int((float)meanPoint.x /  float(npoints)); 
+    meanPoint.y = int((float)meanPoint.y /  float(npoints)); 
+
+    cv::circle(imgcolor, meanPoint, 10, cv::Scalar(0,0,255, 255), cv::FILLED); 
+
+    // image
+    exportImage(name, "_patternSquareSize.png", imgcolor); 
+    show_wait_destroy("PatternSquare", imgcolor); 
+
+
+    // ==============================================
+    // Methode Entropie 
+    // ==============================================
+    
+    // Entropie Detection 
     unsigned int dxy = 32; // pixels 
     int nx = (int) (image.size[1] / (float)dxy); 
     int ny = (int) (image.size[0] / (float)dxy); 
@@ -314,13 +408,125 @@ int main( int argc, char** argv )
     cv::circle(imageDetection, topLeft , 10,  cv::Scalar(255,0,0,255), cv::FILLED, 8, 0 );
     cv::circle(imageDetection, bottomRight , 10,  cv::Scalar(0,0,255,255), cv::FILLED, 8, 0 );
 
-    cv::line(imageDetection, cv::Point2f(xHist.x, yHist.x), cv::Point2f(xHist.y, yHist.x), cv::Scalar(255,0,255,180), 15); 
-    cv::line(imageDetection, cv::Point2f(xHist.y, yHist.x), cv::Point2f(xHist.y, yHist.y), cv::Scalar(255,0,255,180), 15); 
-
+    
     printPoint("TopLeft", topLeft);  
     printPoint("bottomRight", bottomRight);
 
-    show_wait_destroy("Image Detection Carrre", imageDetection);
+    // Comparison between the Two methodes 
+    /*cv::line(imageDetection, cv::Point2f(xHist.x, yHist.x), cv::Point2f(xHist.y, yHist.x), cv::Scalar(255,0,255,180), 15); 
+    cv::line(imageDetection, cv::Point2f(xHist.y, yHist.x), cv::Point2f(xHist.y, yHist.y), cv::Scalar(255,0,255,180), 15); 
+    */
+
+    show_wait_destroy("Image Detection Carrre Entropie", imageDetection);
+
+
+
+    // ==============================================
+    // Methode histogrammes 
+    // ==============================================
+
+    // Enhanced image 
+    // ----------------
+    float alpha = 1.f; 
+    float beta = 0.0f; 
+    cv::Mat enhancedImage = image.clone(); 
+    enhancedImage.convertTo(enhancedImage, -1, alpha, beta);
+
+
+
+    // Detected edge 
+    // ----------------
+    cv::Mat cannyEdge;  
+    int threshold_canny = 100; 
+    detectEdge(enhancedImage, cannyEdge, threshold_canny); 
+
+    show_wait_destroy("Canny Edge on enhanced image", cannyEdge); 
+    exportImage(name, "_cannyEdge_100_perspectivecorrection.png", cannyEdge); 
+
+
+    // Histograms
+    // -------------
+    std::vector<int> histocannyx; 
+    std::vector<int> histocannyy; 
+    processAxisHistograms(histocannyx, histocannyy, cannyEdge, 200); 
+
+    int thresholdN = 125; 
+    cv::Point2f xHist = cv::Point2f(FLT_MAX, FLT_MIN); 
+    cv::Point2f yHist = cv::Point2f(FLT_MAX, FLT_MIN);
+
+    cv::Mat realHisto = cv::Mat::zeros(cannyEdge.size[0], cannyEdge.size[1], CV_8UC1); 
+    for (int k = 0; k < cannyEdge.size[1] ; k++)
+    {
+        if (k < 20 || k > cannyEdge.size[1] - 20)
+        {
+            continue; 
+        }
+
+        // filter with entropie
+        if (k < topLeft.x || k > bottomRight.x) {
+            continue;
+        }
+
+        if (histocannyx[k] > thresholdN) {
+            
+            if (k < xHist.x) {
+                xHist.x =(float) k; 
+            }
+
+            if (k > xHist.y) {
+                xHist.y = (float)k; 
+            }
+        }
+
+        for (int j = 0; j < histocannyx[k] ; j++)
+        {
+            realHisto.at<uchar>(j,k) = 255; 
+        }
+    }
+
+    for (int k = 0; k < cannyEdge.size[0] ; k++)
+    {
+        if (k < 20 || k > cannyEdge.size[0] - 20)
+        {
+            continue; 
+        }
+        // filter with entropie
+        if (k < topLeft.y || k > bottomRight.y) {
+            continue;
+        }
+
+        if (histocannyy[k] > thresholdN) {
+            
+            if (k < yHist.x) {
+                yHist.x = (float)k; 
+            }
+
+            if (k > yHist.y) {
+                yHist.y = (float)k; 
+            }
+        }
+
+
+        for (int j = 0; j < histocannyy[k] ; j++)
+        {
+            realHisto.at<uchar>(k,j) = 255; 
+        }
+    }
+
+    printPoint("xhist", xHist); 
+    printPoint("yhist", yHist); 
+    cv::Mat rgbrealHisto; 
+    cv::cvtColor(realHisto, rgbrealHisto, cv::COLOR_GRAY2BGR); 
+    cv::line(rgbrealHisto, cv::Point2f(xHist.x, (float)thresholdN), cv::Point2f(xHist.y, (float)thresholdN), cv::Scalar(255,0,0,255), 15); 
+    cv::line(rgbrealHisto, cv::Point2f((float)thresholdN, yHist.x), cv::Point2f((float)thresholdN, yHist.y), cv::Scalar(0,0,255,255), 15); 
+    show_wait_destroy("Histogram of Canny Edge", rgbrealHisto); 
+
+    std::string histoname = name + std::string("_histograms.png"); 
+    cv::imwrite(histoname, rgbrealHisto); 
+
+
+
+    
 
     cv::Mat imageRGB; 
     cv::cvtColor(image,imageRGB, cv::COLOR_GRAY2BGR); 
