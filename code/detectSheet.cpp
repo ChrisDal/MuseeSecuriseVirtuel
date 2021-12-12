@@ -3,13 +3,10 @@
 #include <vector>
 #include <cfloat>
 #include "imageanalysis.h"
+#include "toolFunctions.hpp"
 
 #define DEBUG_ON_DISPLAY 1
 
-#include "opencv2/core.hpp"
-#include "opencv2/imgproc.hpp"
-#include "opencv2/imgcodecs.hpp"
-#include "opencv2/highgui.hpp"
 #include <opencv2/opencv.hpp>
 #include <opencv2/features2d.hpp>
 
@@ -18,131 +15,6 @@ Objectif : Detect the sheet of paper where is the oeuvre
 Return a png file where the oeuvre is corrected from distortion 
 */ 
 
-
-
-// ======================================================================================
-
-std::vector<std::pair<float, float>> houghAnalysis(const std::vector<cv::Point2f>& vecClassified, int width, int height, 
-                                                    float dtheta=1.5f, float drho = 3.2f, float maxtheta=180.f)
-{
-
-    double maxRho = std::sqrt(width*width + height*height); 
-
-    int Ntheta = (int)(maxtheta / dtheta) + 1;
-    int Nrho   = (int)(maxRho / drho) + 1; 
-
-    // Hough transformation  
-    std::vector<std::vector<unsigned int> > houghvec(Ntheta, std::vector<unsigned int>(Nrho, 0));   
-
-    // pour chaque point 
-    for (const cv::Point2f& p : vecClassified)
-    {
-        for (int k=0; k < Ntheta; k++)
-        {
-            float theta = dtheta * (float)k * 3.14f / 180.0f; 
-            float rho = p.x * std::cos(theta) + p.y * std::sin(theta); 
-
-            int krho = (int) std::abs(rho / drho); 
-            houghvec[k][krho] += 1; 
-        }
-    }
-
-    cv::Mat testMat = cv::Mat::zeros(Nrho, Ntheta, CV_8UC1); 
-    const unsigned int minVotes = 20; 
-    std::vector<std::pair<float, float>> winnerTuple; 
-    for (int k = 0; k < Ntheta; k++)
-    {
-        for (int i = 0; i < Nrho; i++)
-        {
-            
-            testMat.at<uchar>(i, k) = 50*houghvec[k][i]; 
-            if (houghvec[k][i] >= minVotes) {
-                winnerTuple.emplace_back((float)k*dtheta, i*drho); 
-            }
-        }
-    }
-
-    for (const std::pair<float, float>& wint : winnerTuple)
-    {
-        std::cout << "Pair : <" << wint.first << "," << wint.second << ">\n"; 
-    }
-
-    if (DEBUG_ON_DISPLAY)
-    {
-        cv::imshow(" Hough Mat" , testMat); 
-        cv::waitKey(0); 
-    }
-
-    return winnerTuple; 
-}
-
-
-void displayHoughLines(const std::vector< std::pair<float, float> >& analysisresult, cv::Mat& imageOndisp)
-{
-    for (const std::pair<float, float>& lines : analysisresult)
-    {
-        float rho = lines.second; 
-        float theta = lines.first * 3.14f / 180.0f; // theta = degree
-
-        float a = std::cos(theta); 
-        float b = std::sin(theta); 
-        cv::Point2f p0(rho * a, rho * b); 
-
-        cv::Point2f p1(p0.x + (int)(10000 * (-b)), p0.y + (int)(10000*a)); 
-        cv::Point2f p2(p0.x - (int)(10000 * (-b)), p0.y - (int)(10000*a)); 
-
-        cv::line(imageOndisp ,p1, p2, cv::Scalar(0,0,255, 255)); 
-
-        if (DEBUG_ON_DISPLAY)
-        {
-            cv::imshow("Line Houghs", imageOndisp); 
-            cv::waitKey(0); 
-        }
-
-    }
-    
-}
-
-template < typename T > 
-void printPoint(const char* message, const T& point )
-{
-    std::cout << message << " "; 
-    std::cout << "[" << point.x << "," << point.y << "]" << std::endl; 
-}
-
-// helper function:
-// finds a cosine of angle between vectors
-// from pt0->pt1 and from pt0->pt2
-static double angle( cv::Point pt1, cv::Point pt2, cv::Point pt0 )
-{
-    double dx1 = pt1.x - pt0.x;
-    double dy1 = pt1.y - pt0.y;
-    double dx2 = pt2.x - pt0.x;
-    double dy2 = pt2.y - pt0.y;
-    return (dx1*dx2 + dy1*dy2)/sqrt((dx1*dx1 + dy1*dy1)*(dx2*dx2 + dy2*dy2) + 1e-10);
-}
-
-
-static double distance(const cv::Point p0, const cv::Point p1)
-{
-    return std::sqrt(std::pow(p1.x - p0.x, 2) +  std::pow(p1.y - p0.y, 2)); 
-}
-
-// ======================================================================================
-
-void show_wait_destroy(const char* winname, cv::Mat img) {
-    cv::namedWindow(winname, cv::WINDOW_NORMAL);
-    cv::imshow(winname, img);
-    cv::moveWindow(winname, 500, 0);
-    cv::waitKey(0);
-    cv::destroyWindow(winname);
-}
-
-int lowThreshold = 50;
-const int max_lowThreshold = 300;
-const int ratio = 3;
-const int kernel_size = 3;
-const char* window_name = "Edge Map";
 
 // ======================================================================================
 
@@ -161,6 +33,7 @@ int main( int argc, char** argv )
 
     image = cv::imread( argv[1], cv::IMREAD_GRAYSCALE );
     const char* name  = argv[2]; 
+    const char* window_name = "Edge Map";
 
     if ( !image.data )
     {
@@ -190,9 +63,8 @@ int main( int argc, char** argv )
     show_wait_destroy( window_name, cannyEdge);
 
     // Exported
-    std::string tr_name = std::string(name) + std::to_string(cannyThreshFound) + ".png"; 
-    cv::imwrite(tr_name.c_str(), cannyEdge); 
-    std::cout << "Image Exported : " << tr_name << std::endl; 
+    std::string tr_name = std::to_string(cannyThreshFound) + ".png"; 
+    exportImage(name, tr_name, cannyEdge);
 
     // ====================================
     // Find contours 
@@ -258,11 +130,9 @@ int main( int argc, char** argv )
     std::cout << "End Processing Rectangle ... " << std::endl; 
     cv::polylines(imageColor, ourSheet, true, cv::Scalar(0, 0, 255, 255), 3, cv::LINE_AA);
     show_wait_destroy("Edge Detection carre", imageColor); 
-    // export image
-    std::string foundCarrename = std::string(name) + "_found.png"; 
-    cv::imwrite(foundCarrename.c_str(), imageColor); 
-    std::cout << "Image Exported : " << foundCarrename << std::endl;
-
+    // Export Image 
+    exportImage(name, "_found.png", imageColor); 
+    
 
     // ====================================
     // Warp image
@@ -329,8 +199,8 @@ int main( int argc, char** argv )
     cv::Mat warpImage = cv::Mat::zeros(cv::Size(pixA4_height, pixA4_width), CV_8UC1);   
 
     cv::warpPerspective(image, warpImage, perspectiveMatrix, cv::Size(pixA4_width, pixA4_height)); 
-    std::string perspectiveimage = std::string(name) + "_perspective.png"; 
-    cv::imwrite(perspectiveimage.c_str(), warpImage); 
+    // Export Image 
+    exportImage(name, "_perspective.png", warpImage);  
     show_wait_destroy("Warp Image ", warpImage); 
 
     // histogram 

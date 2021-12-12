@@ -55,17 +55,18 @@ int main( int argc, char** argv )
     int max_thresh = 255;
     const char* source_window = "Source image";
 
-    if ( argc != 6 )
+    if ( argc != 7 )
     {
-        printf("usage: CreateOeuvre.out <EncryptedImage> <Oeuvre> <Oeuvre2> <Oeuvre3> <exportedPattern> \n");
+        printf("usage: CreateOeuvre.out <EncryptedImage> <SecretKey> <Oeuvre> <Oeuvre2> <Oeuvre3> <exportedPattern> \n");
         return -1;
     }
     
     image = cv::imread( argv[1], cv::IMREAD_GRAYSCALE );
-    const char* name  = argv[2]; 
-    const char* name2 = argv[3]; 
-    const char* name3 = argv[4]; 
-    const char* exportedPattern = argv[5];
+    int secretKey = std::stoi(argv[2]); 
+    const char* name  = argv[3]; 
+    const char* name2 = argv[4]; 
+    const char* name3 = argv[5]; 
+    const char* exportedPattern = argv[6];
 
     if ( !image.data )
     {
@@ -73,9 +74,11 @@ int main( int argc, char** argv )
         return -1;
     }
 
-    unsigned int dpi = 300; 
-    unsigned int pixA4_width; 
-    unsigned int pixA4_height; 
+    //initSeed(secretKey); 
+
+    int dpi = 300; 
+    int pixA4_width; 
+    int pixA4_height; 
 
     if (dpi == 72) 
     {
@@ -149,10 +152,10 @@ int main( int argc, char** argv )
     // ========================================================================================================
     // 2nd type of image :  with lines 
 
-    for (int ky = 0; ky < (int)pixA4_height; ky++)
+    for (int ky = 0; ky < pixA4_height; ky++)
     {
 
-        for (int kx = 0; kx < (int)pixA4_width; kx++)
+        for (int kx = 0; kx < pixA4_width; kx++)
         {
             bool inside= (kx >= boundX) && (ky >= boundY) && (kx < (boundX + image.size[1]  -1 )) && (ky < (boundY + image.size[0]-1)); 
             bool line1 = (kx == (boundX-3) || kx == (boundX-2) || kx == (boundX-1)); 

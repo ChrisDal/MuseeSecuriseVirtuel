@@ -13,9 +13,6 @@
 // A symmetric image encryption with naive permutation by blocks 
 
 
-
-
-
 int main(int argc, char** argv )
 {
     /*
@@ -44,6 +41,8 @@ int main(int argc, char** argv )
         return -1;
     }
 
+    //initSeed(27111991); 
+
     cv::Mat image;
     image = cv::imread( argv[1], cv::IMREAD_GRAYSCALE );
     const char* exportedDirectory = argv[3]; 
@@ -71,28 +70,28 @@ int main(int argc, char** argv )
     cv::Mat reconstructedImg = cv::Mat::eye(nrows, ncols, image.type());
 
     // Split by blocs 
-    int nblocks = (int) float(nrows)/ float(blocksize); 
+    int nblocks = (int) (float(nrows)/ float(blocksize)); 
 
     // mean calculation 
-    for (unsigned int ki = 0; ki < image.size[0]; ki+=sqrtblockSize)
+    for (int ki = 0; ki < image.size[0]; ki+=sqrtblockSize)
     {
-        for (unsigned int kj = 0; kj < image.size[1]; kj+=sqrtblockSize)
+        for (int kj = 0; kj < image.size[1]; kj+=sqrtblockSize)
         {
             
             float meanpixel = 0.0f; 
 
-            for (unsigned int ti = 0; ti < sqrtblockSize; ti++)
+            for (int ti = 0; ti < sqrtblockSize; ti++)
             {
-                for (unsigned int tj = 0; tj < sqrtblockSize; tj++)
+                for (int tj = 0; tj < sqrtblockSize; tj++)
                 {
                     meanpixel += (float)image.at<IMAGEMAT_TYPE>(ki + ti , kj + tj); 
                 }
             }
 
             meanpixel /= (float)blocksize; 
-            for (unsigned int ti = 0; ti < sqrtblockSize; ti++)
+            for (int ti = 0; ti < sqrtblockSize; ti++)
             {
-                for (unsigned int tj = 0; tj < sqrtblockSize; tj++)
+                for (int tj = 0; tj < sqrtblockSize; tj++)
                 {
                     smoothedImage.at<IMAGEMAT_TYPE>(ki + ti , kj + tj)= static_cast<IMAGEMAT_TYPE>(meanpixel);   
                 }
@@ -108,9 +107,9 @@ int main(int argc, char** argv )
 
 
     // by bloc 
-    for (unsigned int ki = 0; ki < subsampled.size[0]; ki++)
+    for (int ki = 0; ki < subsampled.size[0]; ki++)
     {
-        for (unsigned int kj = 0; kj < subsampled.size[1]; kj++)
+        for (int kj = 0; kj < subsampled.size[1]; kj++)
         {
             subsampled.at<IMAGEMAT_TYPE>(ki, kj) = smoothedImage.at<IMAGEMAT_TYPE>(ki*sqrtblockSize, kj*sqrtblockSize); 
         }
@@ -144,14 +143,14 @@ int main(int argc, char** argv )
     cv::imwrite(filename, subpermutedImage); 
 
     // Reconstructed blocks 
-    for (unsigned int ki = 0; ki < subreconstructedImage.size[0]; ki++)
+    for (int ki = 0; ki < subreconstructedImage.size[0]; ki++)
     {
-        for (unsigned int kj = 0; kj < subreconstructedImage.size[1]; kj++)
+        for (int kj = 0; kj < subreconstructedImage.size[1]; kj++)
         {
             
-            for (unsigned int ti = 0; ti < sqrtblockSize; ti++)
+            for (int ti = 0; ti < sqrtblockSize; ti++)
             {
-                for (unsigned int tj = 0; tj < sqrtblockSize; tj++)
+                for (int tj = 0; tj < sqrtblockSize; tj++)
                 {
                     permutedImage.at<IMAGEMAT_TYPE>(ki*sqrtblockSize + ti, kj*sqrtblockSize +tj) = subpermutedImage.at<IMAGEMAT_TYPE>(ki, kj);
                 }
@@ -171,9 +170,9 @@ int main(int argc, char** argv )
     // RECONSTRUCTION 
 
     // downsampled 
-    for (unsigned int ki = 0; ki < subsampled.size[0]; ki++)
+    for (int ki = 0; ki < subsampled.size[0]; ki++)
     {
-        for (unsigned int kj = 0; kj < subsampled.size[1]; kj++)
+        for (int kj = 0; kj < subsampled.size[1]; kj++)
         {
             subrecpermutedImage.at<IMAGEMAT_TYPE>(ki, kj) = permutedImage.at<IMAGEMAT_TYPE>(ki*sqrtblockSize, kj*sqrtblockSize); 
         }
@@ -193,14 +192,14 @@ int main(int argc, char** argv )
     cv::imwrite(filename, subreconstructedImage); 
 
     // oversampled 
-    for (unsigned int ki = 0; ki < subreconstructedImage.size[0]; ki++)
+    for (int ki = 0; ki < subreconstructedImage.size[0]; ki++)
     {
-        for (unsigned int kj = 0; kj < subreconstructedImage.size[1]; kj++)
+        for (int kj = 0; kj < subreconstructedImage.size[1]; kj++)
         {
             
-            for (unsigned int ti = 0; ti < sqrtblockSize; ti++)
+            for (int ti = 0; ti < sqrtblockSize; ti++)
             {
-                for (unsigned int tj = 0; tj < sqrtblockSize; tj++)
+                for (int tj = 0; tj < sqrtblockSize; tj++)
                 {
                     reconstructedImg.at<IMAGEMAT_TYPE>(ki*sqrtblockSize + ti, kj*sqrtblockSize +tj) = subreconstructedImage.at<IMAGEMAT_TYPE>(ki, kj);
                 }

@@ -8,6 +8,7 @@
 
 #include "BasePermutation.h"
 #include "imageanalysis.h"
+#include "toolFunctions.hpp"
 
 #include <opencv2/core/types.hpp>
 #include <opencv2/core/fast_math.hpp>
@@ -36,36 +37,7 @@ float distanceNumber(T p1, T p2)
     return static_cast<float>(std::sqrt(std::pow(p2- p1,2))); 
 }
 
-
-template < typename T > 
-void printPoint(const char* message, const T& point )
-{
-    std::cout << message << " "; 
-    std::cout << "[" << point.x << "," << point.y << "]" << std::endl; 
-}
-
-// helper function:
-// finds a cosine of angle between vectors
-// from pt0->pt1 and from pt0->pt2
-static double angle( cv::Point pt1, cv::Point pt2, cv::Point pt0 )
-{
-    double dx1 = pt1.x - pt0.x;
-    double dy1 = pt1.y - pt0.y;
-    double dx2 = pt2.x - pt0.x;
-    double dy2 = pt2.y - pt0.y;
-    return (dx1*dx2 + dy1*dy2)/sqrt((dx1*dx1 + dy1*dy1)*(dx2*dx2 + dy2*dy2) + 1e-10);
-}
-
-
-static double distance(const cv::Point p0, const cv::Point p1)
-{
-    return std::sqrt(std::pow(p1.x - p0.x, 2) +  std::pow(p1.y - p0.y, 2)); 
-}
-
 // ======================================================================================
-
-void show_wait_destroy(const char* winname, cv::Mat img);
-
 
 
 double getEntropie(const cv::Mat& Img, unsigned int width, unsigned int height, unsigned int nbsymb)
@@ -204,11 +176,11 @@ int main( int argc, char** argv )
         if (histocannyx[k] > thresholdN) {
             
             if (k < xHist.x) {
-                xHist.x = k; 
+                xHist.x =(float) k; 
             }
 
             if (k > xHist.y) {
-                xHist.y = k; 
+                xHist.y = (float)k; 
             }
         }
 
@@ -228,11 +200,11 @@ int main( int argc, char** argv )
         if (histocannyy[k] > thresholdN) {
             
             if (k < yHist.x) {
-                yHist.x = k; 
+                yHist.x = (float)k; 
             }
 
             if (k > yHist.y) {
-                yHist.y = k; 
+                yHist.y = (float)k; 
             }
         }
 
@@ -247,8 +219,8 @@ int main( int argc, char** argv )
     printPoint("yhist", yHist); 
     cv::Mat rgbrealHisto; 
     cv::cvtColor(realHisto, rgbrealHisto, cv::COLOR_GRAY2BGR); 
-    cv::line(rgbrealHisto, cv::Point2f(xHist.x, 150), cv::Point2f(xHist.y, 150), cv::Scalar(255,0,0,255), 15); 
-    cv::line(rgbrealHisto, cv::Point2f(150, yHist.x), cv::Point2f(150, yHist.y), cv::Scalar(0,0,255,255), 15); 
+    cv::line(rgbrealHisto, cv::Point2f(xHist.x, 150.f), cv::Point2f(xHist.y, 150.f), cv::Scalar(255,0,0,255), 15); 
+    cv::line(rgbrealHisto, cv::Point2f(150.f, yHist.x), cv::Point2f(150.f, yHist.y), cv::Scalar(0,0,255,255), 15); 
     show_wait_destroy("Histogram of Canny Edge", rgbrealHisto); 
 
     std::string histoname = name + std::string("_histograms.png"); 
@@ -262,9 +234,9 @@ int main( int argc, char** argv )
 
     cv::Mat entropimage = cv::Mat::zeros(image.size[0],image.size[1], CV_8UC1); 
 
-    for (unsigned int k = 0 ; k < nx ; k++)
+    for (int k = 0 ; k < nx ; k++)
     {
-        for (unsigned int j = 0; j < ny ; j++)
+        for (int j = 0; j < ny ; j++)
         {
             cv::Rect patch = cv::Rect(k * dxy, j *dxy, dxy, dxy); 
             cv::Mat roi = image(patch); 
@@ -295,9 +267,9 @@ int main( int argc, char** argv )
     cv::Point2f topLeft = cv::Point2f(FLT_MAX, FLT_MAX); 
     cv::Point2f bottomRight = cv::Point2f(FLT_MIN, FLT_MIN); 
 
-    for (unsigned int kx = 0; kx <  thresholdEnt.size[1]; kx++)
+    for (int kx = 0; kx <  thresholdEnt.size[1]; kx++)
     {
-        for (unsigned int ky = 0; ky < thresholdEnt.size[0] ; ky++)
+        for (int ky = 0; ky < thresholdEnt.size[0] ; ky++)
         {
             if (thresholdEnt.at<IMAGEMAT_TYPE>(ky, kx) == 255)
             {
@@ -309,7 +281,7 @@ int main( int argc, char** argv )
 
                 if (ky <= topLeft.y )
                 {
-                    topLeft.y = ky; 
+                    topLeft.y = (float)ky; 
                 }
 
                 if (kx >= bottomRight.x) 
@@ -350,14 +322,7 @@ int main( int argc, char** argv )
     cv::imwrite(imageDetectedname, roi); 
     std::cout << "Image Detected written at " << imageDetectedname << std::endl; 
 
+    
+
     return EXIT_SUCCESS; 
-}
-
-
-void show_wait_destroy(const char* winname, cv::Mat img) {
-    cv::namedWindow(winname, cv::WINDOW_NORMAL);
-    cv::imshow(winname, img);
-    cv::moveWindow(winname, 500, 0);
-    cv::waitKey(0);
-    cv::destroyWindow(winname);
 }
