@@ -51,8 +51,6 @@ void createPattern(cv::Mat& pattern, int carreSize, int carreNumber)
 int main( int argc, char** argv )
 {
     cv::Mat image;
-    int thresh = 154;
-    int max_thresh = 255;
     const char* source_window = "Source image";
 
     if ( argc != 7 )
@@ -76,7 +74,7 @@ int main( int argc, char** argv )
 
     //initSeed(secretKey); 
 
-    int dpi = 300; 
+    int dpi = 200; 
     int pixA4_width; 
     int pixA4_height; 
 

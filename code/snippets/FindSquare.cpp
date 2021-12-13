@@ -116,7 +116,7 @@ static void findSquares( const cv::Mat& image, std::vector<std::vector<cv::Point
 
 // Filter squares by median area : 
 // if abs(area - median area) > 10 % => remove
-void filterSquares(std::vector<std::vector<cv::Point>>& squares, std::vector<double>& areas)
+void filterSquares(const cv::Mat& image, std::vector<std::vector<cv::Point>>& squares, std::vector<double>& areas)
 {
 
     // Process Areas 
@@ -136,12 +136,25 @@ void filterSquares(std::vector<std::vector<cv::Point>>& squares, std::vector<dou
 
     // Determine outliers
     std::vector<int> indexRemove; 
+    cv::Mat roi; 
     for (int k = 0; k < squares.size(); k++)
     {
         if (std::fabs(areas[k] - medianArea) > 0.10 * medianArea)
         {
             indexRemove.insert(indexRemove.begin(), k); 
         }
+
+        // remove if intensity > 125 
+        roi = image(cv::Rect2f(squares[k][0], squares[k][2])); 
+        cv::Scalar m = cv::mean(roi); 
+
+        float meanRoi = (m[0] + m[1] + m[2]) / 3.0f; 
+
+        if (meanRoi > 125.0f)
+        {
+            indexRemove.insert(indexRemove.begin(), k); 
+        }
+
     }
 
     // Remove outliers 
@@ -200,7 +213,7 @@ int main(int argc, char** argv)
         std::vector<double> areas; 
 
         findSquares(image, squares);
-        filterSquares(squares, areas); 
+        filterSquares(image, squares, areas); 
         
         float squareSize = (float)getSquareSide(areas); 
 
