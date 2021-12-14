@@ -2,6 +2,7 @@
 #include <string>
 #include "BasePermutation.h"
 #include "imageanalysis.h"
+#include "toolFunctions.hpp"
 
 #include <opencv2/core/types.hpp>
 #include <opencv2/core/fast_math.hpp>
@@ -35,29 +36,35 @@ int main(int argc, char** argv )
 
     */
 
-    if ( argc != 4 )
+    if ( argc != 5 )
     {
-        printf("usage: DisplayImage.out <Image_Path> <Encrypted Image> <directory> \n");
+        printf("usage: DisplayImage.out <Image_Path> <SecretKey> <Encrypted Image> <directory> \n");
         return -1;
     }
 
-    //initSeed(27111991); 
+    // SecretKey 
+    const int secretKey = std::stoi(argv[2]); 
+    //initSeed(secretKey); 
 
     cv::Mat image;
-    image = cv::imread( argv[1], cv::IMREAD_GRAYSCALE );
-    const char* exportedDirectory = argv[3]; 
+    image = cv::imread( argv[1], cv::IMREAD_GRAYSCALE);
+    const char* filepathEncrypted = argv[3]; 
+    const char* exportedDirectory = argv[4]; 
     
 
     if ( !image.data )
     {
         printf("No image data \n");
         return -1;
+    }else 
+    {
+        std::cout << "Image Loaded : " << argv[1] << std::endl; 
     }
 
     const int nrows = (int)image.size[0]; 
     const int ncols = (int)image.size[1]; 
     const int NM = nrows * ncols;
-    const int blocksize = 16; // number of pixels by block 
+    const int blocksize = 64; // number of pixels by block 
     int sqrtblockSize = (int)std::sqrt(blocksize);
 
     // Image Matrix 
@@ -100,10 +107,8 @@ int main(int argc, char** argv )
     }
 
 
-    cv::imshow("Main", smoothedImage);
-    cv::waitKey(0); 
-    std::string filename = exportedDirectory + std::string("/01-smoothed_image.png"); 
-    cv::imwrite(filename, smoothedImage); 
+    show_wait_destroy("Main", smoothedImage);
+    exportImage(exportedDirectory, "/01-smoothed_image.png", smoothedImage); 
 
 
     // by bloc 
@@ -115,13 +120,8 @@ int main(int argc, char** argv )
         }
     }
 
-
-
-    cv::imshow("Main", subsampled);
-    cv::waitKey(0); 
-
-    filename = exportedDirectory + std::string("/02-subsampled.png"); 
-    cv::imwrite(filename, subsampled); 
+    show_wait_destroy("Main", subsampled);
+    exportImage(exportedDirectory, "/02-subsampled.png", subsampled);
 
     // ===================================================
     // PERMUTATION 
@@ -136,11 +136,8 @@ int main(int argc, char** argv )
     // permute data 
     permuteData(subsampled, subpermutedImage, sequence); 
 
-    cv::imshow("Main", subpermutedImage);
-    cv::waitKey(0);
-
-    filename = exportedDirectory + std::string("/03-subpermutedImage.png"); 
-    cv::imwrite(filename, subpermutedImage); 
+    show_wait_destroy("Main", subpermutedImage);
+    exportImage(exportedDirectory, "/03-subpermutedImage.png", subpermutedImage);
 
     // Reconstructed blocks 
     for (int ki = 0; ki < subreconstructedImage.size[0]; ki++)
@@ -159,12 +156,8 @@ int main(int argc, char** argv )
         }
     }
 
-    cv::imshow("Main", permutedImage);
-    cv::waitKey(0);
-
-    filename = exportedDirectory + std::string("/04-permutedImage.png"); 
-    cv::imwrite(filename, permutedImage); 
-
+    show_wait_destroy("Main", permutedImage);
+    exportImage(exportedDirectory, "/04-permutedImage.png", permutedImage);
 
     // ===================================================
     // RECONSTRUCTION 
@@ -178,18 +171,15 @@ int main(int argc, char** argv )
         }
     }
 
-    cv::imshow("Main", subrecpermutedImage);
-    cv::waitKey(0);
-    filename = exportedDirectory + std::string("/05-subrecpermutedImage.png"); 
-    cv::imwrite(filename, subrecpermutedImage); 
+    show_wait_destroy("Main", subrecpermutedImage);
+    exportImage(exportedDirectory, "/05-subrecpermutedImage.png", subrecpermutedImage);
+
     
     // permute data 
     invPermuteData(subrecpermutedImage, subreconstructedImage, sequence); 
 
-    cv::imshow("Main", subreconstructedImage);
-    cv::waitKey(0);
-    filename = exportedDirectory + std::string("/06-subreconstructedImage.png"); 
-    cv::imwrite(filename, subreconstructedImage); 
+    show_wait_destroy("Main", subreconstructedImage);
+    exportImage(exportedDirectory, "/06-subreconstructedImage.png", subreconstructedImage);
 
     // oversampled 
     for (int ki = 0; ki < subreconstructedImage.size[0]; ki++)
@@ -208,9 +198,8 @@ int main(int argc, char** argv )
         }
     }
 
-    filename = exportedDirectory + std::string("/07-reconstructedImg.png"); 
-    cv::imwrite(filename, reconstructedImg);
-
+    show_wait_destroy("Main", reconstructedImg);
+    exportImage(exportedDirectory, "/07-reconstructedImg.png", reconstructedImg);
 
     // ===================================================
     // PSNR 
@@ -223,14 +212,9 @@ int main(int argc, char** argv )
     std::cout << "PSNR IMAGE original versus blocky = " << imgpsnr2 << std::endl; 
 
 
-    cv::imshow("Main", reconstructedImg);
-    cv::waitKey(0);
-
-    std::cout << "Export image encrypted to " << argv[2] << std::endl; 
-    cv::imwrite(argv[2], permutedImage); 
+    show_wait_destroy("Main", reconstructedImg);
+    exportImage(std::string(), filepathEncrypted, permutedImage);
     cv::destroyAllWindows(); 
-
-
 
     return EXIT_SUCCESS; 
 }
