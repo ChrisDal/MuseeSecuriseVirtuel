@@ -10,9 +10,9 @@
 int main(int argc, char** argv )
 {
 
-    if ( argc != 4 )
+    if ( argc != 5 )
     {
-        printf("usage: Analyse.out <ImagedeReference> <ImageBlocky> <ImageDechiffreeBlocky>\n");
+        printf("usage: Analyse.out <ImagedeReference> <ImageBlocky> <ImageDechiffreeBlocky> <DirectoryToExport> \n");
         return -1;
     }
 
@@ -20,6 +20,7 @@ int main(int argc, char** argv )
     imageref = cv::imread( argv[1], cv::IMREAD_GRAYSCALE);
     imageblocky = cv::imread( argv[2], cv::IMREAD_GRAYSCALE);
     imagedechiffree = cv::imread( argv[3], cv::IMREAD_GRAYSCALE);
+    const char * name  = argv[4]; 
     
 
     if ( !imageref.data || !imageblocky.data || !imagedechiffree.data )
@@ -48,6 +49,19 @@ int main(int argc, char** argv )
                 imageref.type(), cv::Scalar::all(0));
     double imgpsnr3 = processPSNR(MSE2, imageref, imagedechiffree); 
     std::cout << "PSNR IMAGE reference versus dechiffree = " << imgpsnr3 << std::endl; 
+
+
+    // Histograms 
+    cv::Mat histo; 
+    histo = processBarHistogram(imageref, cv::Scalar(255, 50, 50, 255)); 
+    exportImage(name, "/histo_imageref.png", histo); 
+
+    histo = processBarHistogram(imageblocky, cv::Scalar(0, 255, 50, 255)); 
+    exportImage(name, "/histo_imageblocky.png", histo); 
+
+    histo = processBarHistogram(imagedechiffree, cv::Scalar(0, 50, 255, 255)); 
+    exportImage(name, "/histo_imagedechiffree.png", histo); 
+
 
 
     return EXIT_SUCCESS; 
