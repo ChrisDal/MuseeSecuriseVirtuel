@@ -17,6 +17,8 @@ export OEUVRE_PATH="$EXPORTED_DATA/$imgprefix"'EncryptedOeuvre.png'
 export PATTERN="$EXPORTED_DATA/$imgprefix"'patternexported.png'
 export DECRYPTED_OEUVRE="$EXPORTED_DATA/$imgprefix"'DecryptedOeuvre.png'
 
+export BLOCKSIZE=64; 
+
 
 mkdir -p "$EXPORTED_DATA" 
 
@@ -36,4 +38,4 @@ export imageProcess="$EXPORTED_DATA/$imgprefix"'_perspective.png'
 "$BUILD_DIR/$PREFIX_BIN-Detection""$POSTFIX_BIN" "$imageProcess" "$EXPORTED_DATA/$imgprefix"
 
 # Step 4 :  Fin 
-"$BUILD_DIR/$PREFIX_BIN-DecryptedOeuvre""$POSTFIX_BIN"  "$EXPORTED_DATA/$imgprefix"'_imagedetected.png' "$SECRET_KEY" "$imageProcess" "$DECRYPTED_OEUVRE" 64
+"$BUILD_DIR/$PREFIX_BIN-DecryptedOeuvre""$POSTFIX_BIN"  "$EXPORTED_DATA/$imgprefix"'_image_detected_clustering.png' "$SECRET_KEY" "$imageProcess" "$DECRYPTED_OEUVRE" 64

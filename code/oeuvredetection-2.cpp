@@ -586,7 +586,7 @@ int main( int argc, char** argv )
     std::cout << " Square Size Side : " << squareSize << "pixels." <<  std::endl;
 
     // Draw Filter Squares
-    //cv::polylines(imgcolor, squares, true, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+    cv::polylines(imgcolor, squares, true, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
     
     // Draw one square of square side to vizually verify 
     cv::Rect2f OneSquare = cv::Rect2f((float)squares[0][0].x , (float)squares[0][0].y, 

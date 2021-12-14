@@ -147,7 +147,7 @@ double processPSNR(cv::Mat& exportMSE, const cv::Mat& img, const cv::Mat& proces
 
 
     // normalized between 0.0 and 1.0
-    for(int i=0; i <img.rows; i++)
+    for(int i=0; i < img.rows; i++)
     {
         for(int j=0; j < img.cols; j++)
         {

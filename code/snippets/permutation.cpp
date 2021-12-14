@@ -187,42 +187,7 @@ int main()
         invPermuteData(permuted_data, original_data, retrieve_sequence);
         printData(original_data, "Retrieve Original Data :");
     }
-
-    {
-        // ===================================================
-        /* PERMUTATION WITH ROW AND COL
-        Medical Image Encryption Based on Pixel Arrangement and Random
-        Permutation for Transmission Security
-        */ 
-
-        // ===================================================
-        // Init N rows, M columns 
-
-        std::vector<std::vector<int>> data(N, std::vector<int>(M)); 
-
-        std::vector<unsigned int> sequence(M*N); 
-
-
-
-
-
-
-
-
-        
-
-
-        
-
-        
-
-
-
-
-
-    }
-
-    
+  
     
 
     return EXIT_SUCCESS; 
