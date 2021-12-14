@@ -553,7 +553,7 @@ int main( int argc, char** argv )
 
     if ( argc != 3 )
     {
-        printf("usage: detectSheet.out <PictureToAnalyse> <ExtractedData> \n");
+        printf("usage: detection.out <PictureToAnalyse> <ExtractedData> \n");
         return -1;
     }
     cv::Mat blurred, image, imgcolor; 
@@ -575,7 +575,6 @@ int main( int argc, char** argv )
     std::vector<std::vector<cv::Point> > squares;
     std::vector<cv::Point2f> pointsToclass; 
     std::vector<double> areas; 
-    std::cout << "beforeGO "; 
     findSquares(imgcolor, squares);
     filterSquares(squares, areas); 
     
@@ -705,6 +704,24 @@ int main( int argc, char** argv )
     //cv::polylines(hierarchicalClustering, intersections, true, cv::Scalar(200, 200, 200, 125), 5); 
     exportImage(name, "_clusteringpoints.png", hierarchicalClustering); 
     show_wait_destroy("Clustering Points",hierarchicalClustering ); 
+    float width = intersections[1].x -  intersections[0].x; 
+    float height = intersections[2].y -  intersections[0].y;
+
+    cv::Point2f src[4] = {intersections[0], 
+                        intersections[1], 
+                        intersections[2], 
+                        intersections[3]}; 
+
+    cv::Point2f dst[4] = {cv::Point2f(0.0f, 0.0f), 
+                          cv::Point2f(width, 0.0f), 
+                            cv::Point2f(0.0f, height),  cv::Point2f(width, height)};
+
+    cv::Mat perspectiveMatrix = cv::getPerspectiveTransform(src, dst); 
+    cv::Mat rescaleROI = cv::Mat::zeros(cv::Size(width, height), CV_8UC1);   
+
+    cv::warpPerspective(image, rescaleROI, perspectiveMatrix,  cv::Size((int)width,  (int)height)); 
+    show_wait_destroy("Test Perspective", rescaleROI); 
+    exportImage(name, "_image_detected_clustering.png", rescaleROI); 
 
 
 
@@ -713,7 +730,7 @@ int main( int argc, char** argv )
     // ==============================================
     
     // Entropie Detection 
-    unsigned int dxy = 32; // pixels 
+    unsigned int dxy = 16; // pixels 
     int nx = (int) (image.size[1] / (float)dxy); 
     int ny = (int) (image.size[0] / (float)dxy); 
 
@@ -916,6 +933,8 @@ int main( int argc, char** argv )
     std::cout << "Image Detected written at " << imageDetectedname << std::endl; 
 
     float ratio = (float)squareSize / 72.0f; 
+    
+
 
 
 

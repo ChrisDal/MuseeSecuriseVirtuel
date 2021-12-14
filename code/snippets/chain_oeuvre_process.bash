@@ -15,24 +15,25 @@ export imgprefix='Chaine_'
 export SECRET_KEY='27111991'
 export OEUVRE_PATH="$EXPORTED_DATA/$imgprefix"'EncryptedOeuvre.png'
 export PATTERN="$EXPORTED_DATA/$imgprefix"'patternexported.png'
+export DECRYPTED_OEUVRE="$EXPORTED_DATA/$imgprefix"'DecryptedOeuvre.png'
 
 
 mkdir -p "$EXPORTED_DATA" 
 
 # Step 0 : create Oeuvre ... 
-"$BUILD_DIR/$PREFIX_BIN-MethodeNaive""$POSTFIX_BIN" "$DATA_DIR/15_Girafes.pgm"  "$SECRET_KEY" "$OEUVRE_PATH" "$EXPORTED_DATA"
+#"$BUILD_DIR/$PREFIX_BIN-MethodeNaive""$POSTFIX_BIN" "$DATA_DIR/15_Girafes.pgm"  "$SECRET_KEY" "$OEUVRE_PATH" "$EXPORTED_DATA"
 
 # Step 1 : Create Feuille oeuvre 
-"$BUILD_DIR/$PREFIX_BIN-ExportImage""$POSTFIX_BIN" "$OEUVRE_PATH" "$SECRET_KEY" "$EXPORTED_DATA/$imgprefix""Oeuvre0.png" "$EXPORTED_DATA/$imgprefix"'Oeuvre1.png' "$EXPORTED_DATA/$imgprefix"'Oeuvre2.png' "$PATTERN"
+#"$BUILD_DIR/$PREFIX_BIN-ExportImage""$POSTFIX_BIN" "$OEUVRE_PATH" "$SECRET_KEY" "$EXPORTED_DATA/$imgprefix""Oeuvre0.png" "$EXPORTED_DATA/$imgprefix"'Oeuvre1.png' "$EXPORTED_DATA/$imgprefix"'Oeuvre2.png' "$PATTERN"
 
 
 # Step 2 : Detection feuille 
-#"$BUILD_DIR/$PREFIX_BIN-DetectImage""$POSTFIX_BIN" "$PHOTOS_DIR/IMG_20211209_124313.jpg" "$EXPORTED_DATA/$imgprefix"
+"$BUILD_DIR/$PREFIX_BIN-DetectImage""$POSTFIX_BIN" "$PHOTOS_DIR/IMG_20211213_234327.jpg" "$EXPORTED_DATA/$imgprefix"
 
-#export imageProcess="$EXPORTED_DATA/$imgprefix"'_perspective.png'
+export imageProcess="$EXPORTED_DATA/$imgprefix"'_perspective.png'
 
 # Step 3 :  Detection oeuvre 
-#"$BUILD_DIR/$PREFIX_BIN-Detection""$POSTFIX_BIN" "$imageProcess" "$EXPORTED_DATA/$imgprefix"
+"$BUILD_DIR/$PREFIX_BIN-Detection""$POSTFIX_BIN" "$imageProcess" "$EXPORTED_DATA/$imgprefix"
 
 # Step 4 :  Fin 
-#"$BUILD_DIR/$PREFIX_BIN-Detection""$POSTFIX_BIN" "$imageProcess" "$EXPORTED_DATA/$imgprefix"
+"$BUILD_DIR/$PREFIX_BIN-DecryptedOeuvre""$POSTFIX_BIN"  "$EXPORTED_DATA/$imgprefix"'_imagedetected.png' "$SECRET_KEY" "$imageProcess" "$DECRYPTED_OEUVRE" 64

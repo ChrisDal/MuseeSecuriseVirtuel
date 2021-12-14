@@ -13,3 +13,7 @@ target_link_libraries( ${PROJECT_NAME}.out ${OpenCV_LIBS} )
 # compile
 add_executable( "FindSquare" FindSquare.cpp )
 target_link_libraries( "FindSquare" ${OpenCV_LIBS} )
+
+# compile
+add_executable( "ResultAnalysis" resultAnalysis.cpp )
+target_link_libraries( "ResultAnalysis" ${OpenCV_LIBS} )

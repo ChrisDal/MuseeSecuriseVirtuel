@@ -2,15 +2,20 @@
 #include "imageanalysis.h"
 #include "BasePermutation.h"
 
+// =======================================================
+
+
+
+// ========================================================
 
 int main( int argc, char** argv )
 {
     
     const char* source_window = "Canny Edge";
 
-    if ( argc != 4 )
+    if ( argc != 5 )
     {
-        printf("usage: decryptOeuvre.out <ImageToDecrypt> <SecretKey> <Dyrectory/ImageDecrypted> \n");
+        printf("usage: decryptOeuvre.out <ImageToDecrypt> <SecretKey> <Directory/ImageDecrypted> <blockSize>\n");
         return -1;
     }
 
@@ -19,6 +24,7 @@ int main( int argc, char** argv )
     cv::Mat image = cv::imread( argv[1], cv::IMREAD_GRAYSCALE );
     const int secretKey = std::stoi(argv[2]); 
     const char* name  = argv[3]; 
+    const int blocksize = std::stoi(argv[4]); // number of pixels by block 
 
     if ( !image.data )
     {
@@ -40,8 +46,6 @@ int main( int argc, char** argv )
 
     width = std::powf(2, std::round(std::log2(width))); 
     height = std::powf(2, std::round(std::log2(height))); 
-    width = 512.f; 
-    height = 512.f; 
     
 
     cv::Point2f src[4] = {cv::Point2f(0.0f, 0.0f), 
@@ -69,7 +73,6 @@ int main( int argc, char** argv )
     const int nrows = (int)rescaleROI.size[0]; 
     const int ncols = (int)rescaleROI.size[1]; 
     const int NM = nrows * ncols;
-    const int blocksize = 16; // number of pixels by block 
     int sqrtblockSize = (int)std::sqrt(blocksize);
     const int dpi = 200; 
     unsigned int pixA4_width; 
@@ -91,6 +94,7 @@ int main( int argc, char** argv )
     }
 
     show_wait_destroy("Test MAT ", testMat); 
+    exportImage(name, "_gridOverImage.png", testMat); 
 
     cv::Mat subsampled(nrows / sqrtblockSize,  ncols/sqrtblockSize, image.type());
     cv::Mat subrecpermutedImage = cv::Mat::zeros(subsampled.size[0], subsampled.size[1], subsampled.type());
@@ -145,26 +149,45 @@ int main( int argc, char** argv )
             int kx = kj*sqrtblockSize; 
             // mean pixel 
             float pixel = 0.0f; 
-            uchar base = rescaleROI.at<IMAGEMAT_TYPE>(ki*sqrtblockSize, kj*sqrtblockSize);
-
-            pixel += (float)rescaleROI.at<IMAGEMAT_TYPE>(ky+1,kx+1); 
-            pixel += (float)rescaleROI.at<IMAGEMAT_TYPE>(ky+1,kx+2); 
-            pixel += (float)rescaleROI.at<IMAGEMAT_TYPE>(ky+2,kx+1); 
-            pixel += (float)rescaleROI.at<IMAGEMAT_TYPE>(ky+2,kx+2); 
+            int dk = (int)(sqrtblockSize / 2.0f)-1; 
+            // Take Kernel at SideBlock / 2 + voisinage +1
+            pixel += (float)rescaleROI.at<IMAGEMAT_TYPE>(ky+dk,kx+dk); 
+            pixel += (float)rescaleROI.at<IMAGEMAT_TYPE>(ky+dk,kx+dk+1); 
+            pixel += (float)rescaleROI.at<IMAGEMAT_TYPE>(ky+dk+1,kx+dk); 
+            pixel += (float)rescaleROI.at<IMAGEMAT_TYPE>(ky+dk+1,kx+dk+1); 
             pixel /= 4.0f; 
 
             subrecpermutedImage.at<IMAGEMAT_TYPE>(ki, kj) =  (IMAGEMAT_TYPE)pixel;
         }
     }
 
-    cv::imshow("Main", subrecpermutedImage);
-    cv::waitKey(0);
+    show_wait_destroy("Sub reconstructed permuted image", subrecpermutedImage);
+    exportImage(name, "02-subrecpermutedImage.png",  subrecpermutedImage); 
 
     // permute data 
     invPermuteData(subrecpermutedImage, subreconstructedImage, sequence); 
 
-    cv::imshow("Main", subreconstructedImage);
-    cv::waitKey(0);
+    show_wait_destroy("Main", subreconstructedImage);
+    exportImage(name, "03-subreconstructedImage.png",  subreconstructedImage); 
+
+
+    cv::Rect rectBlock; 
+
+    // resampled image 
+    // oversampled 
+    for (int ki = 0; ki < subreconstructedImage.size[0]; ki++)
+    {
+        for (int kj = 0; kj < subreconstructedImage.size[1]; kj++)
+        {
+            rectBlock = cv::Rect(kj*sqrtblockSize, ki*sqrtblockSize, sqrtblockSize, sqrtblockSize); 
+            reconstructedImg(rectBlock).setTo(subreconstructedImage.at<IMAGEMAT_TYPE>(ki, kj)); 
+            //reconstructedImg.at<IMAGEMAT_TYPE>(ki*sqrtblockSize + ti, kj*sqrtblockSize +tj) = subreconstructedImage.at<IMAGEMAT_TYPE>(ki, kj);
+        }
+    }
+
+    show_wait_destroy("Main", reconstructedImg);
+    exportImage(name, "04-reconstructedImg.png",  reconstructedImg); 
+
 
     return EXIT_SUCCESS; 
 }
